@@ -2024,11 +2024,30 @@ if st.button("Submit Decisions and Run Quarter", type="primary", use_container_w
     st.success("Quarter completed! View results below.")
     st.balloons()
 
+# Helper function to convert tuple keys to JSON-serializable format
+def make_json_serializable(obj):
+    """Recursively convert tuple keys to strings for JSON serialization"""
+    if isinstance(obj, dict):
+        return {
+            (str(k) if isinstance(k, tuple) else k): make_json_serializable(v)
+            for k, v in obj.items()
+        }
+    elif isinstance(obj, list):
+        return [make_json_serializable(item) for item in obj]
+    elif isinstance(obj, tuple):
+        return str(obj)
+    else:
+        return obj
+
 # Display last report if available
 if player_company.last_report:
-    st.markdown("### Latest Results")
+    st.markdown("### Management Report")
     
     report = player_company.last_report
+    quarter = report.get('quarter', 1)
+    year = report.get('year', 1)
+    
+    st.markdown(f"**Year {year}, Quarter {quarter}**")
     
     # Key metrics
     metrics_cols = st.columns(5)
@@ -2043,12 +2062,156 @@ if player_company.last_report:
     with metrics_cols[4]:
         st.metric("Share Price", f"£{report.get('share_price', 0):.2f}")
     
-    # Detailed report expander
-    with st.expander("Detailed Report", expanded=False):
-        st.json(report)
+    # Management Report - Comprehensive view
+    with st.expander("📊 Full Management Report", expanded=True):
+        # Profit & Loss
+        st.markdown("#### Profit & Loss Account")
+        pnl_data = {
+            "Revenue": f"£{report.get('revenue', 0):,.0f}",
+            "Cost of Sales": f"£{report.get('cost_of_sales', 0):,.0f}",
+            "Gross Profit": f"£{report.get('gross_profit', 0):,.0f}",
+            "Total Overheads": f"£{report.get('total_overheads', 0):,.0f}",
+            "EBITDA": f"£{report.get('ebitda', 0):,.0f}",
+            "Interest Received": f"£{report.get('interest_received', 0):,.0f}",
+            "Interest Paid": f"£{report.get('interest_paid', 0):,.0f}",
+            "Depreciation": f"£{report.get('depreciation', 0):,.0f}",
+            "Profit Before Tax": f"£{report.get('profit_before_tax', 0):,.0f}",
+            "Tax": f"£{report.get('tax', 0):,.0f}",
+            "Net Profit": f"£{report.get('net_profit', 0):,.0f}",
+            "Dividends": f"£{report.get('dividends', 0):,.0f}",
+            "Retained Earnings": f"£{report.get('retained', 0):,.0f}",
+        }
+        pnl_df = pd.DataFrame(list(pnl_data.items()), columns=["Item", "Amount"])
+        st.dataframe(pnl_df, use_container_width=True, hide_index=True)
+        
+        # Balance Sheet
+        st.markdown("#### Balance Sheet")
+        balance_data = {
+            "Cash": f"£{report.get('cash', 0):,.0f}",
+            "Overdraft": f"£{report.get('overdraft', 0):,.0f}",
+            "Unsecured Loan": f"£{report.get('loan', 0):,.0f}",
+            "Net Worth": f"£{report.get('net_worth', 0):,.0f}",
+        }
+        balance_df = pd.DataFrame(list(balance_data.items()), columns=["Item", "Amount"])
+        st.dataframe(balance_df, use_container_width=True, hide_index=True)
+        
+        # Sales by Product and Area
+        st.markdown("#### Sales by Product and Area")
+        sales_dict = report.get('sales', {})
+        if sales_dict:
+            sales_rows = []
+            total_revenue = report.get('revenue', 0)
+            total_units = sum(sales_dict.values())
+            avg_price = total_revenue / total_units if total_units > 0 else 0
+            for (product, area), units in sales_dict.items():
+                # Estimate value proportionally
+                units_share = units / total_units if total_units > 0 else 0
+                value = total_revenue * units_share
+                sales_rows.append({
+                    "Product": product,
+                    "Area": area,
+                    "Units": units,
+                    "Value": f"£{value:,.0f}"
+                })
+            if sales_rows:
+                st.dataframe(pd.DataFrame(sales_rows), use_container_width=True)
+                st.caption(f"Total Revenue: £{total_revenue:,.0f}")
+        
+        # Stock Levels
+        st.markdown("#### Stock Levels by Product and Area")
+        stocks_dict = report.get('stocks', {})
+        if stocks_dict:
+            stock_rows = []
+            for (product, area), units in stocks_dict.items():
+                stock_rows.append({
+                    "Product": product,
+                    "Area": area,
+                    "Units": units,
+                    "Value": f"£{units * PRODUCT_STOCK_VALUATION.get(product, 0):,.0f}"
+                })
+            if stock_rows:
+                st.dataframe(pd.DataFrame(stock_rows), use_container_width=True)
+        
+        # Backlog
+        st.markdown("#### Backlog by Product and Area")
+        backlog_dict = report.get('backlog', {})
+        if backlog_dict:
+            backlog_rows = []
+            for (product, area), units in backlog_dict.items():
+                backlog_rows.append({
+                    "Product": product,
+                    "Area": area,
+                    "Units": units
+                })
+            if backlog_rows:
+                st.dataframe(pd.DataFrame(backlog_rows), use_container_width=True)
+        
+        # Production & Deliveries
+        st.markdown("#### Production & Deliveries")
+        deliveries_dict = report.get('deliveries', {})
+        if deliveries_dict:
+            delivery_rows = []
+            for (product, area), units in deliveries_dict.items():
+                rejects = report.get('rejects', {}).get((product, area), 0)
+                delivery_rows.append({
+                    "Product": product,
+                    "Area": area,
+                    "Produced": units,
+                    "Rejected": rejects,
+                    "Delivered": units
+                })
+            if delivery_rows:
+                st.dataframe(pd.DataFrame(delivery_rows), use_container_width=True)
+        
+        # Operations Summary
+        st.markdown("#### Operations Summary")
+        ops_data = {
+            "Machines": report.get('machines', 0),
+            "Machines Installed": report.get('machines_installed', 0),
+            "Machines Ordered": report.get('machines_ordered', 0),
+            "Machine Efficiency": f"{report.get('machine_efficiency', 0)*100:.1f}%",
+            "Shift Level": report.get('shift_level', 1),
+            "Materials Used": f"{report.get('materials_used', 0):,.0f}",
+            "Materials Opening": f"{report.get('material_opening', 0):,.0f}",
+            "Materials Delivered": f"{report.get('material_delivered', 0):,.0f}",
+            "Materials Closing": f"{report.get('material_closing', 0):,.0f}",
+        }
+        ops_df = pd.DataFrame(list(ops_data.items()), columns=["Item", "Value"])
+        st.dataframe(ops_df, use_container_width=True, hide_index=True)
+        
+        # Product Development
+        dev_outcomes = report.get('product_dev_outcomes', {})
+        if dev_outcomes:
+            st.markdown("#### Product Development Outcomes")
+            dev_rows = []
+            for product, outcome in dev_outcomes.items():
+                dev_rows.append({
+                    "Product": product,
+                    "Outcome": outcome
+                })
+            if dev_rows:
+                st.dataframe(pd.DataFrame(dev_rows), use_container_width=True)
+        
+        stock_write_offs = report.get('stock_write_offs', {})
+        if stock_write_offs:
+            st.markdown("#### Stock Write-offs (Major Improvements)")
+            writeoff_rows = []
+            for product, units in stock_write_offs.items():
+                writeoff_rows.append({
+                    "Product": product,
+                    "Units Written Off": units,
+                    "Value": f"£{units * PRODUCT_STOCK_VALUATION.get(product, 0):,.0f}"
+                })
+            if writeoff_rows:
+                st.dataframe(pd.DataFrame(writeoff_rows), use_container_width=True)
+    
+    # Detailed report expander (with JSON serialization fix)
+    with st.expander("🔍 Detailed Report (JSON)", expanded=False):
+        json_safe_report = make_json_serializable(report)
+        st.json(json_safe_report)
     
     # Financial summary
-    with st.expander("Financial Summary", expanded=False):
+    with st.expander("💰 Financial Summary", expanded=False):
         fin_cols = st.columns(3)
         with fin_cols[0]:
             st.metric("Gross Profit", f"£{report.get('gross_profit', 0):,.0f}")
