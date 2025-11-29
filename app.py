@@ -1104,6 +1104,10 @@ class Simulation:
         company.opening_loan = company.unsecured_loan
         company.opening_debtors = company.debtors
         company.opening_creditors = company.creditors
+        company.opening_salespeople = company.salespeople
+        company.opening_assembly_workers = company.assembly_workers
+        company.opening_machinists = company.machines * MACHINISTS_PER_MACHINE.get(decisions.shift_level, 4)
+        company.opening_vehicles = company.vehicles
         
         # 1. Apply personnel changes from previous quarters
         self.apply_personnel_dismissals(company)
@@ -1444,7 +1448,63 @@ class Simulation:
         # Store material price history
         self.material_prices_history.append(econ.material_price)
         
-        # Build comprehensive report
+        # Calculate detailed resource usage for report
+        shift = decisions.shift_level
+        worker_hours_data = WORKER_HOURS[shift]
+        total_hours_per_worker = worker_hours_data["basic"] + worker_hours_data["saturday"] + worker_hours_data["sunday"]
+        strike_hours_lost = company.strike_weeks_next_quarter * (worker_hours_data["basic"] / 12.0)
+        effective_hours = total_hours_per_worker - strike_hours_lost
+        
+        # Assembly hours
+        assembly_hours_available = company.assembly_workers * total_hours_per_worker
+        assembly_hours_worked = company.assembly_workers * effective_hours * min(1.0, capacity_ratio)
+        
+        # Machine hours
+        hours_per_machine = MACHINE_HOURS_PER_SHIFT[shift]
+        total_machine_hours_available = company.machines * hours_per_machine
+        maint_hours = company.machines * decisions.maintenance_hours_per_machine
+        machine_hours_worked = cap_mach
+        
+        # Personnel movements (calculate from state changes)
+        opening_sales = company.opening_salespeople if hasattr(company, 'opening_salespeople') else company.salespeople
+        opening_assembly = company.opening_assembly_workers if hasattr(company, 'opening_assembly_workers') else company.assembly_workers
+        opening_machinists = company.opening_machinists if hasattr(company, 'opening_machinists') else (company.machines * MACHINISTS_PER_MACHINE[shift])
+        
+        # Calculate cost breakdowns
+        opening_stock_value = sum(
+            company.stocks.get((p, a), 0) * PRODUCT_STOCK_VALUATION[p]
+            for p in PRODUCTS for a in AREAS
+        )
+        closing_stock_value = sum(
+            stocks_new.get((p, a), 0) * PRODUCT_STOCK_VALUATION[p]
+            for p in PRODUCTS for a in AREAS
+        )
+        
+        # Material stock value
+        material_opening_value = material_opening * (econ.material_price / 1000.0) * 0.5
+        material_closing_value = material_closing * (econ.material_price / 1000.0) * 0.5
+        
+        # Fixed asset values
+        machine_values_total = sum(company.machine_values)
+        vehicle_values = sum(VEHICLE_COST * ((1 - VEHICLE_DEPRECIATION_RATE) ** age) for age in company.vehicles_age_quarters)
+        
+        # Credit control cost
+        total_units_sold = sum(sales.values())
+        credit_control_cost = total_units_sold * CREDIT_CONTROL_COST_PER_UNIT
+        
+        # Sales office cost (from fixed overheads)
+        sales_office_cost = SALESPERSON_EXPENSES * company.salespeople * 0.5  # approximate
+        
+        # Other miscellaneous costs
+        misc_costs = FIXED_OVERHEADS_PER_QUARTER + write_off_cost
+        
+        # Calculate servicing units (simplified - based on rejects)
+        servicing_units = {p: sum(rejects.get((p, a), 0) for a in AREAS) for p in PRODUCTS}
+        
+        # Calculate scheduled (planned deliveries)
+        scheduled = planned_deliveries
+        
+        # Build comprehensive report with all breakdowns
         report = {
             "quarter": quarter,
             "year": year,
@@ -1475,6 +1535,7 @@ class Simulation:
             "material_opening": material_opening,
             "material_closing": material_closing,
             "material_delivered": material_delivered_qty,
+            "material_on_order": sum(order.qty for order in company.material_orders),
             "stocks": stocks_new,
             "backlog": backlog_new,
             "sales": sales,
@@ -1483,6 +1544,114 @@ class Simulation:
             "rejects": rejects,
             "product_dev_outcomes": dev_outcomes,
             "stock_write_offs": stock_write_offs,
+            "scheduled": scheduled,
+            "servicing_units": servicing_units,
+            
+            # Resource usage details
+            "assembly_hours_available": assembly_hours_available,
+            "assembly_hours_worked": assembly_hours_worked,
+            "assembly_hours_absenteeism": assembly_hours_available - assembly_hours_worked,
+            "machine_hours_available": total_machine_hours_available,
+            "machine_hours_maintenance": maint_hours,
+            "machine_hours_worked": machine_hours_worked,
+            "vehicles_available": company.opening_vehicles if hasattr(company, 'opening_vehicles') else company.vehicles,
+            "strike_weeks_next": company.strike_weeks_next_quarter,
+            
+            # Personnel movements
+            "personnel_opening": {
+                "sales": opening_sales,
+                "assembly": opening_assembly,
+                "machinists": opening_machinists
+            },
+            "personnel_recruited": {
+                "sales": personnel_results.get("sales_recruited", 0),
+                "assembly": personnel_results.get("assembly_recruited", 0),
+                "machinists": personnel_results.get("machinists_recruited", 0) if "machinists_recruited" in personnel_results else 0
+            },
+            "personnel_trained": {
+                "sales": training_results.get("sales_trained", 0),
+                "assembly": training_results.get("assembly_trained", 0),
+                "machinists": training_results.get("machinists_trained", 0) if "machinists_trained" in training_results else 0
+            },
+            "personnel_dismissed": {
+                "sales": decisions.dismiss_sales,
+                "assembly": decisions.dismiss_assembly,
+                "machinists": 0  # machinists are typically not dismissed individually
+            },
+            "personnel_leavers": {
+                "sales": personnel_results.get("sales_leavers", 0) if "sales_leavers" in personnel_results else 0,
+                "assembly": personnel_results.get("assembly_leavers", 0) if "assembly_leavers" in personnel_results else 0,
+                "machinists": personnel_results.get("machinists_leavers", 0) if "machinists_leavers" in personnel_results else 0
+            },
+            "personnel_available_next": {
+                "sales": company.salespeople,
+                "assembly": company.assembly_workers,
+                "machinists": company.machines * MACHINISTS_PER_MACHINE[shift]
+            },
+            
+            # Overhead breakdown
+            "overhead_breakdown": {
+                "advertising": ads_cost,
+                "salespeople_salary": salespeople_salary_cost + sales_commission_cost,
+                "sales_office": sales_office_cost,
+                "guarantee_servicing": guarantee_cost,
+                "transport_fleet": transport_details.get("fleet_fixed", 0) + transport_details.get("own_running", 0),
+                "hired_transport": transport_details.get("hired_running", 0),
+                "product_research": prod_dev_cost,
+                "personnel_department": personnel_costs,
+                "maintenance": maint_cost,
+                "warehousing_purchasing": warehousing_cost + purchasing_cost,
+                "business_intelligence": info_cost,
+                "management_budget": management_cost,
+                "credit_control": credit_control_cost,
+                "other_miscellaneous": misc_costs
+            },
+            
+            # Cost of sales breakdown
+            "cost_of_sales_breakdown": {
+                "opening_stock_value": opening_stock_value,
+                "materials_purchased": material_cost,
+                "assembly_wages": assembly_wages,
+                "machinists_wages": machinist_wages,
+                "machine_running_costs": machine_running_cost,
+                "closing_stock_value": closing_stock_value
+            },
+            
+            # Balance sheet items
+            "balance_sheet": {
+                "property_value": company.property_value,
+                "machine_values": machine_values_total,
+                "vehicle_values": vehicle_values,
+                "product_stocks_value": closing_stock_value,
+                "material_stock_value": material_closing_value,
+                "debtors": company.debtors,
+                "cash_invested": company.cash if company.cash > 0 else 0,
+                "tax_assessed_due": company.tax_liability,
+                "creditors": company.creditors,
+                "overdraft": company.overdraft,
+                "unsecured_loans": company.unsecured_loan,
+                "ordinary_capital": company.shares_outstanding * 2.0,  # £2 per share initial
+                "reserves": company.reserves
+            },
+        }
+        
+        # Cash flow calculations (done after cash updates)
+        opening_cash_val = company.opening_cash
+        closing_cash_val = company.cash if company.cash > 0 else 0
+        cash_change = closing_cash_val - opening_cash_val + company.overdraft - company.opening_overdraft
+        
+        report["cash_flow"] = {
+            "trading_receipts": revenue,  # simplified - actual would be cash received
+            "trading_payments": cost_of_sales + total_overheads - total_depreciation,  # simplified
+            "tax_paid": 0,  # paid when assessed
+            "interest_received": interest_received,
+            "capital_receipts": 0,  # from vehicle/machine sales
+            "capital_payments": machines_ordered * MACHINE_DEPOSIT + decisions.vans_to_buy * VEHICLE_COST,
+            "interest_paid": interest_paid,
+            "dividend_paid": dividends,
+            "opening_cash": opening_cash_val,
+            "closing_cash": closing_cash_val,
+            "net_cash_flow": cash_change
         }
         
         company.last_report = report
@@ -2062,148 +2231,263 @@ if player_company.last_report:
     with metrics_cols[4]:
         st.metric("Share Price", f"£{report.get('share_price', 0):.2f}")
     
-    # Management Report - Comprehensive view
+    # Management Report - Comprehensive view matching manual format
     with st.expander("📊 Full Management Report", expanded=True):
-        # Profit & Loss
-        st.markdown("#### Profit & Loss Account")
-        pnl_data = {
-            "Revenue": f"£{report.get('revenue', 0):,.0f}",
-            "Cost of Sales": f"£{report.get('cost_of_sales', 0):,.0f}",
-            "Gross Profit": f"£{report.get('gross_profit', 0):,.0f}",
-            "Total Overheads": f"£{report.get('total_overheads', 0):,.0f}",
-            "EBITDA": f"£{report.get('ebitda', 0):,.0f}",
-            "Interest Received": f"£{report.get('interest_received', 0):,.0f}",
-            "Interest Paid": f"£{report.get('interest_paid', 0):,.0f}",
-            "Depreciation": f"£{report.get('depreciation', 0):,.0f}",
-            "Profit Before Tax": f"£{report.get('profit_before_tax', 0):,.0f}",
-            "Tax": f"£{report.get('tax', 0):,.0f}",
-            "Net Profit": f"£{report.get('net_profit', 0):,.0f}",
-            "Dividends": f"£{report.get('dividends', 0):,.0f}",
-            "Retained Earnings": f"£{report.get('retained', 0):,.0f}",
-        }
-        pnl_df = pd.DataFrame(list(pnl_data.items()), columns=["Item", "Amount"])
-        st.dataframe(pnl_df, use_container_width=True, hide_index=True)
+        # Two column layout for top sections
+        top_col1, top_col2 = st.columns(2)
         
-        # Balance Sheet
-        st.markdown("#### Balance Sheet")
-        balance_data = {
-            "Cash": f"£{report.get('cash', 0):,.0f}",
-            "Overdraft": f"£{report.get('overdraft', 0):,.0f}",
-            "Unsecured Loan": f"£{report.get('loan', 0):,.0f}",
-            "Net Worth": f"£{report.get('net_worth', 0):,.0f}",
-        }
-        balance_df = pd.DataFrame(list(balance_data.items()), columns=["Item", "Amount"])
-        st.dataframe(balance_df, use_container_width=True, hide_index=True)
+        with top_col1:
+            st.markdown("#### AVAILABILITY and USE OF RESOURCES")
+            
+            # Machines
+            st.write("**Machines:**")
+            st.write(f"- Machines Available Last Quarter: {report.get('machines', 0) - report.get('machines_installed', 0)}")
+            st.write(f"- Machines Available for Next Quarter: {report.get('machines', 0)}")
+            
+            # Vehicles
+            st.write("**Vehicles:**")
+            st.write(f"- Vehicles Available Last Quarter: {report.get('vehicles_available', 0)}")
+            
+            # Assembly Workers Hours
+            st.write("**Assembly Workers Hours:**")
+            st.write(f"- Total Hours Available Last Quarter: {report.get('assembly_hours_available', 0):.0f}")
+            st.write(f"- Hours of Absenteeism/Sickness: {report.get('assembly_hours_absenteeism', 0):.0f}")
+            st.write(f"- Total Hours Worked Last Quarter: {report.get('assembly_hours_worked', 0):.0f}")
+            st.write(f"- Notice of Strike Weeks Next Quarter: {report.get('strike_weeks_next', 0)}")
+            
+            # Machine Hours
+            st.write("**Machine Hours:**")
+            st.write(f"- Total Hours Available Last Quarter: {report.get('machine_hours_available', 0):.0f}")
+            st.write(f"- Hours of Planned Maintenance: {report.get('machine_hours_maintenance', 0):.0f}")
+            st.write(f"- Total Hours Worked Last Quarter: {report.get('machine_hours_worked', 0):.0f}")
+            st.write(f"- Average Machine Efficiency %: {report.get('machine_efficiency', 0)*100:.1f}")
+            
+            # Material Units
+            st.write("**Material Units Used and Available:**")
+            st.write(f"- Opening Stock Available (units): {report.get('material_opening', 0):,.0f}")
+            st.write(f"- Delivered Last Quarter: {report.get('material_delivered', 0):,.0f}")
+            st.write(f"- Used Last Quarter: {report.get('materials_used', 0):,.0f}")
+            st.write(f"- Closing Stock at End of Quarter: {report.get('material_closing', 0):,.0f}")
+            st.write(f"- On Order for Next Quarter: {report.get('material_on_order', 0):,.0f}")
+            st.write(f"- Total Available for Next Quarter: {report.get('material_closing', 0) + report.get('material_on_order', 0):,.0f}")
+            
+            # Personnel Table
+            st.write("**Personnel:**")
+            personnel = report.get('personnel_opening', {})
+            personnel_rec = report.get('personnel_recruited', {})
+            personnel_train = report.get('personnel_trained', {})
+            personnel_dismiss = report.get('personnel_dismissed', {})
+            personnel_leavers = report.get('personnel_leavers', {})
+            personnel_next = report.get('personnel_available_next', {})
+            
+            personnel_data = {
+                "": ["Sales", "Assembly", "Machinists"],
+                "At Start of Last Quarter": [
+                    personnel.get('sales', 0),
+                    personnel.get('assembly', 0),
+                    personnel.get('machinists', 0)
+                ],
+                "Recruits": [
+                    personnel_rec.get('sales', 0),
+                    personnel_rec.get('assembly', 0),
+                    personnel_rec.get('machinists', 0)
+                ],
+                "Trainees": [
+                    personnel_train.get('sales', 0),
+                    personnel_train.get('assembly', 0),
+                    personnel_train.get('machinists', 0)
+                ],
+                "Dismissals": [
+                    personnel_dismiss.get('sales', 0),
+                    personnel_dismiss.get('assembly', 0),
+                    personnel_dismiss.get('machinists', 0)
+                ],
+                "Leavers": [
+                    personnel_leavers.get('sales', 0),
+                    personnel_leavers.get('assembly', 0),
+                    personnel_leavers.get('machinists', 0)
+                ],
+                "Available for Next Quarter": [
+                    personnel_next.get('sales', 0),
+                    personnel_next.get('assembly', 0),
+                    personnel_next.get('machinists', 0)
+                ]
+            }
+            st.dataframe(pd.DataFrame(personnel_data), use_container_width=True, hide_index=True)
         
-        # Sales by Product and Area
-        st.markdown("#### Sales by Product and Area")
-        sales_dict = report.get('sales', {})
-        if sales_dict:
-            sales_rows = []
-            total_revenue = report.get('revenue', 0)
-            total_units = sum(sales_dict.values())
-            avg_price = total_revenue / total_units if total_units > 0 else 0
-            for (product, area), units in sales_dict.items():
-                # Estimate value proportionally
-                units_share = units / total_units if total_units > 0 else 0
-                value = total_revenue * units_share
-                sales_rows.append({
-                    "Product": product,
-                    "Area": area,
-                    "Units": units,
-                    "Value": f"£{value:,.0f}"
-                })
-            if sales_rows:
-                st.dataframe(pd.DataFrame(sales_rows), use_container_width=True)
-                st.caption(f"Total Revenue: £{total_revenue:,.0f}")
+        with top_col2:
+            st.markdown("#### PRODUCT MOVEMENTS and AVAILABILITY")
+            
+            # Quantities table
+            st.write("**Quantities:**")
+            scheduled = report.get('scheduled', {})
+            deliveries = report.get('deliveries', {})
+            rejects = report.get('rejects', {})
+            servicing = report.get('servicing_units', {})
+            
+            # Build product movement tables
+            quant_data = {"": PRODUCTS}
+            quant_data["Scheduled"] = [scheduled.get((p, "Export"), 0) + sum(scheduled.get((p, a), 0) for a in ["South", "West", "North"]) for p in PRODUCTS]
+            quant_data["Produced"] = [sum(deliveries.get((p, a), 0) for a in AREAS) + sum(rejects.get((p, a), 0) for a in AREAS) for p in PRODUCTS]
+            quant_data["Rejected"] = [sum(rejects.get((p, a), 0) for a in AREAS) for p in PRODUCTS]
+            quant_data["Serviced"] = [servicing.get(p, 0) for p in PRODUCTS]
+            st.dataframe(pd.DataFrame(quant_data), use_container_width=True, hide_index=True)
+            
+            # Delivered to table
+            st.write("**Delivered to:**")
+            deliv_data = {"Area": AREAS}
+            for p in PRODUCTS:
+                deliv_data[p] = [deliveries.get((p, a), 0) for a in AREAS]
+            st.dataframe(pd.DataFrame(deliv_data), use_container_width=True, hide_index=True)
+            
+            # Orders from table
+            st.write("**Orders from:**")
+            new_orders = report.get('new_orders', {})
+            orders_data = {"Area": AREAS}
+            for p in PRODUCTS:
+                orders_data[p] = [new_orders.get((p, a), 0) for a in AREAS]
+            st.dataframe(pd.DataFrame(orders_data), use_container_width=True, hide_index=True)
+            
+            # Sales to table
+            st.write("**Sales to:**")
+            sales = report.get('sales', {})
+            sales_data = {"Area": AREAS}
+            for p in PRODUCTS:
+                sales_data[p] = [sales.get((p, a), 0) for a in AREAS]
+            st.dataframe(pd.DataFrame(sales_data), use_container_width=True, hide_index=True)
+            
+            # Order Backlog table
+            st.write("**Order Backlog:**")
+            backlog = report.get('backlog', {})
+            backlog_data = {"Area": AREAS}
+            for p in PRODUCTS:
+                backlog_data[p] = [backlog.get((p, a), 0) for a in AREAS]
+            st.dataframe(pd.DataFrame(backlog_data), use_container_width=True, hide_index=True)
+            
+            # Warehouse Stock table
+            st.write("**Warehouse Stock:**")
+            stocks = report.get('stocks', {})
+            stock_data = {"Area": AREAS}
+            for p in PRODUCTS:
+                stock_data[p] = [stocks.get((p, a), 0) for a in AREAS]
+            st.dataframe(pd.DataFrame(stock_data), use_container_width=True, hide_index=True)
+            
+            # Product Improvements
+            st.write("**Product Improvements:**")
+            dev_outcomes = report.get('product_dev_outcomes', {})
+            improvements = [dev_outcomes.get(p, "NONE").upper() if dev_outcomes.get(p) else "NONE" for p in PRODUCTS]
+            imp_data = {"": PRODUCTS, "Improvements": improvements}
+            st.dataframe(pd.DataFrame(imp_data), use_container_width=True, hide_index=True)
         
-        # Stock Levels
-        st.markdown("#### Stock Levels by Product and Area")
-        stocks_dict = report.get('stocks', {})
-        if stocks_dict:
-            stock_rows = []
-            for (product, area), units in stocks_dict.items():
-                stock_rows.append({
-                    "Product": product,
-                    "Area": area,
-                    "Units": units,
-                    "Value": f"£{units * PRODUCT_STOCK_VALUATION.get(product, 0):,.0f}"
-                })
-            if stock_rows:
-                st.dataframe(pd.DataFrame(stock_rows), use_container_width=True)
+        # ACCOUNTS section - two columns
+        st.markdown("---")
+        accounts_col1, accounts_col2 = st.columns(2)
         
-        # Backlog
-        st.markdown("#### Backlog by Product and Area")
-        backlog_dict = report.get('backlog', {})
-        if backlog_dict:
-            backlog_rows = []
-            for (product, area), units in backlog_dict.items():
-                backlog_rows.append({
-                    "Product": product,
-                    "Area": area,
-                    "Units": units
-                })
-            if backlog_rows:
-                st.dataframe(pd.DataFrame(backlog_rows), use_container_width=True)
+        with accounts_col1:
+            st.markdown("#### ACCOUNTS - Overhead Cost Analysis")
+            overhead_breakdown = report.get('overhead_breakdown', {})
+            overhead_items = [
+                ("Advertising", overhead_breakdown.get('advertising', 0)),
+                ("Salespeoples Salary, etc.", overhead_breakdown.get('salespeople_salary', 0)),
+                ("Sales Office", overhead_breakdown.get('sales_office', 0)),
+                ("Guarantee Servicing", overhead_breakdown.get('guarantee_servicing', 0)),
+                ("Transport Fleet", overhead_breakdown.get('transport_fleet', 0)),
+                ("Hired Transport", overhead_breakdown.get('hired_transport', 0)),
+                ("Product Research", overhead_breakdown.get('product_research', 0)),
+                ("Personnel Department", overhead_breakdown.get('personnel_department', 0)),
+                ("Maintenance", overhead_breakdown.get('maintenance', 0)),
+                ("Warehousing & Purchasing", overhead_breakdown.get('warehousing_purchasing', 0)),
+                ("Business Intelligence", overhead_breakdown.get('business_intelligence', 0)),
+                ("Management Budget", overhead_breakdown.get('management_budget', 0)),
+                ("Credit Control", overhead_breakdown.get('credit_control', 0)),
+                ("Other Miscellaneous Costs", overhead_breakdown.get('other_miscellaneous', 0)),
+            ]
+            overhead_df = pd.DataFrame(overhead_items, columns=["Cost Item", "Amount in £"])
+            overhead_df["Amount in £"] = overhead_df["Amount in £"].apply(lambda x: f"£{x:,.0f}")
+            st.dataframe(overhead_df, use_container_width=True, hide_index=True)
+            st.write(f"**Total Overheads:** £{report.get('total_overheads', 0):,.0f}")
         
-        # Production & Deliveries
-        st.markdown("#### Production & Deliveries")
-        deliveries_dict = report.get('deliveries', {})
-        if deliveries_dict:
-            delivery_rows = []
-            for (product, area), units in deliveries_dict.items():
-                rejects = report.get('rejects', {}).get((product, area), 0)
-                delivery_rows.append({
-                    "Product": product,
-                    "Area": area,
-                    "Produced": units,
-                    "Rejected": rejects,
-                    "Delivered": units
-                })
-            if delivery_rows:
-                st.dataframe(pd.DataFrame(delivery_rows), use_container_width=True)
+        with accounts_col2:
+            st.markdown("#### ACCOUNTS - Profit and Loss Account")
+            cos_breakdown = report.get('cost_of_sales_breakdown', {})
+            pnl_items = [
+                ("Sales Revenue", report.get('revenue', 0)),
+                ("Opening Stock Value", cos_breakdown.get('opening_stock_value', 0)),
+                ("Materials Purchased", cos_breakdown.get('materials_purchased', 0)),
+                ("Assembly Wages", cos_breakdown.get('assembly_wages', 0)),
+                ("Machinists Wages", cos_breakdown.get('machinists_wages', 0)),
+                ("Machine Running Costs", cos_breakdown.get('machine_running_costs', 0)),
+                ("Less Closing Stock Value", -cos_breakdown.get('closing_stock_value', 0)),
+                ("Cost of Sales", report.get('cost_of_sales', 0)),
+                ("Gross Profit", report.get('gross_profit', 0)),
+                ("Interest received", report.get('interest_received', 0)),
+                ("Interest Paid", report.get('interest_paid', 0)),
+                ("Overheads", report.get('total_overheads', 0)),
+                ("Depreciation", report.get('depreciation', 0)),
+                ("Tax Assessed", report.get('tax', 0)),
+                ("Net Profit/Loss", report.get('net_profit', 0)),
+                ("Dividend Paid", report.get('dividends', 0)),
+                ("Transferred to Reserves", report.get('retained', 0)),
+            ]
+            pnl_df = pd.DataFrame(pnl_items, columns=["Account Item", "Amount in £"])
+            pnl_df["Amount in £"] = pnl_df["Amount in £"].apply(lambda x: f"£{x:,.0f}")
+            st.dataframe(pnl_df, use_container_width=True, hide_index=True)
         
-        # Operations Summary
-        st.markdown("#### Operations Summary")
-        ops_data = {
-            "Machines": report.get('machines', 0),
-            "Machines Installed": report.get('machines_installed', 0),
-            "Machines Ordered": report.get('machines_ordered', 0),
-            "Machine Efficiency": f"{report.get('machine_efficiency', 0)*100:.1f}%",
-            "Shift Level": report.get('shift_level', 1),
-            "Materials Used": f"{report.get('materials_used', 0):,.0f}",
-            "Materials Opening": f"{report.get('material_opening', 0):,.0f}",
-            "Materials Delivered": f"{report.get('material_delivered', 0):,.0f}",
-            "Materials Closing": f"{report.get('material_closing', 0):,.0f}",
-        }
-        ops_df = pd.DataFrame(list(ops_data.items()), columns=["Item", "Value"])
-        st.dataframe(ops_df, use_container_width=True, hide_index=True)
+        # Balance Sheet and Cash Flow - two columns
+        st.markdown("---")
+        balance_col1, balance_col2 = st.columns(2)
         
-        # Product Development
-        dev_outcomes = report.get('product_dev_outcomes', {})
-        if dev_outcomes:
-            st.markdown("#### Product Development Outcomes")
-            dev_rows = []
-            for product, outcome in dev_outcomes.items():
-                dev_rows.append({
-                    "Product": product,
-                    "Outcome": outcome
-                })
-            if dev_rows:
-                st.dataframe(pd.DataFrame(dev_rows), use_container_width=True)
+        with balance_col1:
+            st.markdown("#### Balance Sheet")
+            balance = report.get('balance_sheet', {})
+            balance_items = [
+                ("**Assets:**", ""),
+                ("Value of Property", balance.get('property_value', 0)),
+                ("Value of Machines", balance.get('machine_values', 0)),
+                ("Value of Vehicles", balance.get('vehicle_values', 0)),
+                ("Value of Product Stocks", balance.get('product_stocks_value', 0)),
+                ("Value of Material Stock", balance.get('material_stock_value', 0)),
+                ("Debtors", balance.get('debtors', 0)),
+                ("Cash Invested", balance.get('cash_invested', 0)),
+                ("**Liabilities:**", ""),
+                ("Tax Assessed and Due", balance.get('tax_assessed_due', 0)),
+                ("Creditors", balance.get('creditors', 0)),
+                ("Overdraft", balance.get('overdraft', 0)),
+                ("Unsecured Loans", balance.get('unsecured_loans', 0)),
+                ("**Net Assets:**", report.get('net_worth', 0)),
+                ("**Funding:**", ""),
+                ("Ordinary Capital", balance.get('ordinary_capital', 0)),
+                ("Reserves", balance.get('reserves', 0)),
+                ("**Total Funding:**", report.get('net_worth', 0)),
+            ]
+            balance_df = pd.DataFrame(balance_items, columns=["Item", "Amount in £"])
+            balance_df["Amount in £"] = balance_df["Amount in £"].apply(lambda x: f"£{x:,.0f}" if isinstance(x, (int, float)) else x)
+            st.dataframe(balance_df, use_container_width=True, hide_index=True)
         
-        stock_write_offs = report.get('stock_write_offs', {})
-        if stock_write_offs:
-            st.markdown("#### Stock Write-offs (Major Improvements)")
-            writeoff_rows = []
-            for product, units in stock_write_offs.items():
-                writeoff_rows.append({
-                    "Product": product,
-                    "Units Written Off": units,
-                    "Value": f"£{units * PRODUCT_STOCK_VALUATION.get(product, 0):,.0f}"
-                })
-            if writeoff_rows:
-                st.dataframe(pd.DataFrame(writeoff_rows), use_container_width=True)
+        with balance_col2:
+            st.markdown("#### Cash Flow Statement")
+            cf = report.get('cash_flow', {})
+            cf_items = [
+                ("**Operating Activities:**", ""),
+                ("Trading Receipts", cf.get('trading_receipts', 0)),
+                ("Trading Payments", -cf.get('trading_payments', 0)),
+                ("Tax Paid", -cf.get('tax_paid', 0)),
+                ("Cash flow from operating activities", cf.get('trading_receipts', 0) - cf.get('trading_payments', 0) - cf.get('tax_paid', 0)),
+                ("**Investing Activities:**", ""),
+                ("Interest Received", cf.get('interest_received', 0)),
+                ("Capital Receipts", cf.get('capital_receipts', 0)),
+                ("Capital Payments", -cf.get('capital_payments', 0)),
+                ("Cash flow from investing activities", cf.get('interest_received', 0) + cf.get('capital_receipts', 0) - cf.get('capital_payments', 0)),
+                ("**Financing Activities:**", ""),
+                ("Interest Paid", -cf.get('interest_paid', 0)),
+                ("Dividend Paid", -cf.get('dividend_paid', 0)),
+                ("Cash flow from financing activities", -cf.get('interest_paid', 0) - cf.get('dividend_paid', 0)),
+                ("**Net Cash Flow:**", cf.get('net_cash_flow', 0)),
+                ("**Overdraft Limit for Next Quarter:**", player_company.calculate_overdraft_limit()),
+            ]
+            cf_df = pd.DataFrame(cf_items, columns=["Item", "Amount in £"])
+            cf_df["Amount in £"] = cf_df["Amount in £"].apply(lambda x: f"£{x:,.0f}" if isinstance(x, (int, float)) else x)
+            st.dataframe(cf_df, use_container_width=True, hide_index=True)
     
     # Detailed report expander (with JSON serialization fix)
     with st.expander("🔍 Detailed Report (JSON)", expanded=False):
