@@ -1732,8 +1732,8 @@ with st.expander("Prices, Credit Terms & Quality", expanded=True):
             )
             assembly_time[p] = st.number_input(
                 f"Assembly time {p} (mins/unit)",
-                min_value=MIN_ASSEMBLY_TIME[p],
-                max_value=MIN_ASSEMBLY_TIME[p] * 2.0,
+                min_value=float(MIN_ASSEMBLY_TIME[p]),
+                max_value=float(MIN_ASSEMBLY_TIME[p] * 2.0),
                 value=float(MIN_ASSEMBLY_TIME[p] * 1.2),
                 step=10.0,
                 key=f"assy_{p}",
@@ -1814,8 +1814,8 @@ with st.expander("Salespeople Allocation", expanded=True):
                 val = st.number_input(
                     f"Salespeople in {a}",
                     min_value=0,
-                    max_value=remaining,
-                    value=remaining // (len(AREAS) - i),
+                    max_value=int(remaining),
+                    value=int(remaining // (len(AREAS) - i)),
                     step=1,
                     key=f"sales_{a}",
                 )
@@ -1891,13 +1891,13 @@ with st.expander("Salespeople", expanded=True):
     with col1:
         recruit_sales = st.number_input("Recruit salespeople", min_value=0, max_value=20, value=0, step=1)
     with col2:
-        dismiss_sales = st.number_input("Dismiss salespeople", min_value=0, max_value=player_company.salespeople, value=0, step=1)
+        dismiss_sales = st.number_input("Dismiss salespeople", min_value=0, max_value=int(player_company.salespeople), value=0, step=1)
     with col3:
         train_sales = st.number_input("Train salespeople from unemployed (max 9)", min_value=0, max_value=9, value=0, step=1)
     
     sales_salary = st.number_input(
         "Sales salary per quarter (£)",
-        min_value=MIN_SALES_SALARY_PER_QUARTER,
+        min_value=float(MIN_SALES_SALARY_PER_QUARTER),
         max_value=50_000.0,
         value=float(player_company.sales_salary),
         step=500.0,
@@ -1915,7 +1915,7 @@ with st.expander("Assembly Workers", expanded=True):
     with col1:
         recruit_assembly = st.number_input("Recruit assembly workers", min_value=0, max_value=50, value=0, step=1)
     with col2:
-        dismiss_assembly = st.number_input("Dismiss assembly workers", min_value=0, max_value=player_company.assembly_workers, value=0, step=1)
+        dismiss_assembly = st.number_input("Dismiss assembly workers", min_value=0, max_value=int(player_company.assembly_workers), value=0, step=1)
     with col3:
         train_assembly = st.number_input("Train assembly workers from unemployed (max 9)", min_value=0, max_value=9, value=0, step=1)
     
@@ -1945,7 +1945,7 @@ with finance_col1:
 with finance_col2:
     management_budget = st.number_input(
         "Management budget (£)",
-        min_value=MIN_MANAGEMENT_BUDGET,
+        min_value=float(MIN_MANAGEMENT_BUDGET),
         max_value=200_000.0,
         value=float(player_company.last_report.get("management_budget", MIN_MANAGEMENT_BUDGET) if player_company.last_report else MIN_MANAGEMENT_BUDGET),
         step=5000.0,
@@ -1968,12 +1968,12 @@ with st.expander("Fixed Assets", expanded=False):
         machines_to_sell = st.number_input(
             "Machines to sell",
             min_value=0,
-            max_value=player_company.machines,
+            max_value=int(player_company.machines),
             value=0,
             step=1,
         )
         vans_to_buy = st.number_input("Vehicles to buy", min_value=0, max_value=10, value=0, step=1)
-        vans_to_sell = st.number_input("Vehicles to sell", min_value=0, max_value=player_company.vehicles, value=0, step=1)
+        vans_to_sell = st.number_input("Vehicles to sell", min_value=0, max_value=int(player_company.vehicles), value=0, step=1)
 
 with st.expander("Information Purchases", expanded=False):
     buy_competitor_info = st.checkbox("Buy Competitor Information (£5,000)", value=False)
