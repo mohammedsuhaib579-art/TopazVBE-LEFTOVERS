@@ -2313,10 +2313,10 @@ with finance_col1:
         max_value=100.0,
         value=0.0,
         step=1.0,
-            disabled=(economy.quarter not in [1, 3]),
-            key=f"div_{player_idx}",
+        disabled=(economy.quarter not in [1, 3]),
+        key=f"div_{player_idx}",
     )
-        if economy.quarter not in [1, 3]:
+    if economy.quarter not in [1, 3]:
         st.caption("Dividends can only be paid in Q1 and Q3")
 
 with finance_col2:
