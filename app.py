@@ -1881,8 +1881,9 @@ class Simulation:
                 # Ensure it's a Decisions object, not a list
                 if isinstance(decision, list):
                     raise TypeError(f"Decision at index {i} is a list, not a Decisions object. Got: {type(decision)}")
-                if not isinstance(decision, Decisions):
-                    raise TypeError(f"Decision at index {i} is not a Decisions object. Got: {type(decision)}")
+                # Check if it has Decisions attributes (more flexible than isinstance due to module context)
+                if not hasattr(decision, 'prices_home') or not hasattr(decision, 'deliveries'):
+                    raise TypeError(f"Decision at index {i} doesn't have Decisions attributes. Got: {type(decision)}")
                 all_decisions.append(decision)
             else:
                 # Only create AI decisions if we have 1 player (AI fills remaining slots)
@@ -1896,18 +1897,15 @@ class Simulation:
         # Ensure we have decisions for all companies
         assert len(all_decisions) == len(self.companies), f"Mismatch: {len(all_decisions)} decisions for {len(self.companies)} companies"
         
-        # Validate all decisions are Decisions objects
+        # Validate all decisions have required attributes (more flexible check)
         for i, dec in enumerate(all_decisions):
-            if not isinstance(dec, Decisions):
-                raise TypeError(f"Decision at index {i} in all_decisions is not a Decisions object. Got: {type(dec)}")
+            if not hasattr(dec, 'prices_home') or not hasattr(dec, 'deliveries'):
+                raise TypeError(f"Decision at index {i} in all_decisions doesn't have Decisions attributes. Got: {type(dec)}")
         
         # Now simulate all companies with competitive mechanics
         reports = []
         for i, c in enumerate(self.companies):
             dec = all_decisions[i]
-            # Double-check it's a Decisions object
-            if not isinstance(dec, Decisions):
-                raise TypeError(f"Decision for company {i} is not a Decisions object. Got: {type(dec)}")
             # Pass all companies and decisions for competitive demand calculation
             rep = self.simulate_quarter_for_company(
                 c, dec, 
@@ -3169,4 +3167,5 @@ for i, comp in enumerate(sim.companies[1:], 1):
     })
 if competitor_df:
     st.dataframe(pd.DataFrame(competitor_df), use_container_width=True)
+
 
