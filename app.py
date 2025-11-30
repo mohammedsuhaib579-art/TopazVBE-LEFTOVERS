@@ -2371,7 +2371,7 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
         advertising_merchandising=advertising_merchandising,
         salespeople_allocation=sales_alloc,
         sales_salary_per_quarter=sales_salary,
-        sales_commission_percent=sales_commission,
+        sales_commission_percent=sales_commission,  # Percentage value (0-20)
         assembly_wage_rate=assembly_wage_rate,
         shift_level=shift_level,
         maintenance_hours_per_machine=maint_hours,
@@ -2831,8 +2831,8 @@ if has_all_decisions:
         # Final validation
         try:
             reports = sim.step(player_decisions_list)
-    st.success("Quarter completed! View results below.")
-    st.balloons()
+            st.success("Quarter completed! View results below.")
+            st.balloons()
         except Exception as e:
             st.error(f"Error running simulation: {str(e)}")
             st.exception(e)
