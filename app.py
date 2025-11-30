@@ -1,5 +1,5 @@
 """
-Topaz-VBE Business Management Simulation
+Leftovers Business Simulation (Topaz-VBE)
 COMPLETE IMPLEMENTATION - Merged from app.py + topaz_simulation.py
 Includes all features from manual and COMPLETION_STATUS.md requirements
 """
@@ -2383,7 +2383,7 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
     )
 
 st.set_page_config(
-    page_title="Topaz-VBE Business Management Simulation", 
+    page_title="Leftovers Business Simulation (Topaz-VBE)", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -2523,10 +2523,10 @@ if not st.session_state.sim_started:
                     box-shadow: 0 10px 30px rgba(0,0,0,0.2);
                     margin-bottom: 3rem;'>
             <h1 style='color: white; font-size: 3rem; margin: 0 0 1rem 0;'>
-                🎮 Topaz-VBE
+                🎮 Leftovers Business Simulation
             </h1>
             <h2 style='color: white; font-size: 1.8rem; margin: 0 0 1.5rem 0; opacity: 0.95;'>
-                Business Management Simulation
+                (Topaz-VBE)
             </h2>
             <p style='color: white; font-size: 1.2em; margin: 0; opacity: 0.9;'>
                 Strategic Business Simulation • Multi-Player Support • Competitive Market Dynamics
@@ -2676,7 +2676,7 @@ st.markdown("""
             margin-bottom: 2rem;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>
     <h1 style='color: white; text-align: center; margin: 0; font-size: 2.5rem;'>
-        🏢 Topaz-VBE Business Management Simulation
+        🏢 Leftovers Business Simulation (Topaz-VBE)
     </h1>
     <p style='color: white; text-align: center; margin-top: 1rem; font-size: 1.1rem; opacity: 0.95;'>
         Strategic Business Simulation • Multi-Player Support • Competitive Market Dynamics
