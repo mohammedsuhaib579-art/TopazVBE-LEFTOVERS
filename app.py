@@ -2034,9 +2034,9 @@ with st.expander("Prices, Credit Terms & Quality", expanded=True):
     prices_home = {}
     prices_export = {}
     assembly_time = {}
-        
-        # Parse bulk paste if provided
-        pasted_values = parse_bulk_paste(paste_prices, 10) if paste_prices else []
+    
+    # Parse bulk paste if provided
+    pasted_values = parse_bulk_paste(paste_prices, 10) if paste_prices else []
     
     for i, p in enumerate(PRODUCTS):
         with price_cols[i]:
