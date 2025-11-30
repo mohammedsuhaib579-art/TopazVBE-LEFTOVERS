@@ -2831,8 +2831,8 @@ if has_all_decisions:
         # Final validation
         try:
             reports = sim.step(player_decisions_list)
-    st.success("Quarter completed! View results below.")
-    st.balloons()
+            st.success("Quarter completed! View results below.")
+            st.balloons()
         except Exception as e:
             st.error(f"Error running simulation: {str(e)}")
             st.exception(e)
