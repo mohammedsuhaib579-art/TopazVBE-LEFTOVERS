@@ -1875,6 +1875,11 @@ class Simulation:
         
         # Collect all decisions first (needed for competitive demand calculation)
         all_decisions = []
+        
+        # Validate we have the right number of decisions
+        if len(player_decisions_list) < self.n_players:
+            raise ValueError(f"Not enough decisions provided. Expected {self.n_players} decisions for {self.n_players} players, got {len(player_decisions_list)}")
+        
         for i, c in enumerate(self.companies):
             if i < len(player_decisions_list) and player_decisions_list[i] is not None:
                 decision = player_decisions_list[i]
@@ -1901,8 +1906,9 @@ class Simulation:
                 if self.n_players == 1:
                     all_decisions.append(self.auto_decisions(c))
                 else:
-                    # This shouldn't happen if setup is correct, but handle gracefully
-                    raise ValueError(f"Missing decision for company {i} but n_players > 1. All companies should be human-controlled.")
+                    # For 2+ players, we should have a decision for each company
+                    # If we're missing one, it's an error
+                    raise ValueError(f"Missing decision for company {i} ({c.name}) but n_players={self.n_players} > 1. Expected {len(self.companies)} decisions for {len(self.companies)} companies, but only have {len(player_decisions_list)} decisions.")
         
         # Ensure we have decisions for all companies
         assert len(all_decisions) == len(self.companies), f"Mismatch: {len(all_decisions)} decisions for {len(self.companies)} companies"
@@ -2777,27 +2783,44 @@ else:
     tab_names = [f"Player {i+1}: {sim.companies[i].name}" for i in range(n_players)]
     tabs = st.tabs(tab_names)
     
+    # Initialize list with None values to maintain order
+    player_decisions_list = [None] * n_players
+    
     for i in range(n_players):
         with tabs[i]:
             decisions_obj = create_player_decision_form(i, sim.companies[i], sim.economy)
+            # Always store the decision object (it's created on every render)
             # Check if it's a Decisions instance (not the class) by checking for attributes
             if decisions_obj is not None and decisions_obj is not Decisions:
                 # Ensure it's an instance, not the class
                 if hasattr(decisions_obj, '__dict__') and hasattr(decisions_obj, 'prices_home') and hasattr(decisions_obj, 'deliveries'):
                     st.session_state.player_decisions[i] = decisions_obj
-                    if decisions_obj not in player_decisions_list:
-                        player_decisions_list.append(decisions_obj)
+                    # Store at the correct index to maintain order
+                    player_decisions_list[i] = decisions_obj
 
-# Use session state decisions if available (check by attributes, not isinstance)
-valid_decisions = []
-for d in st.session_state.player_decisions[:n_players]:
-    if d is not None and d is not Decisions and hasattr(d, '__dict__') and hasattr(d, 'prices_home') and hasattr(d, 'deliveries'):
-        valid_decisions.append(d)
-if len(valid_decisions) == n_players:
-    player_decisions_list = valid_decisions
+# Fill in any missing decisions from session state (for tabs that weren't active)
+for i in range(n_players):
+    if i >= len(player_decisions_list) or player_decisions_list[i] is None:
+        if i < len(st.session_state.player_decisions) and st.session_state.player_decisions[i] is not None:
+            d = st.session_state.player_decisions[i]
+            if d is not None and d is not Decisions and hasattr(d, '__dict__') and hasattr(d, 'prices_home') and hasattr(d, 'deliveries'):
+                if i >= len(player_decisions_list):
+                    while len(player_decisions_list) <= i:
+                        player_decisions_list.append(None)
+                player_decisions_list[i] = d
 
-# Submit button (only show if we have decisions)
-if len(player_decisions_list) == n_players and all(d is not None and d is not Decisions and hasattr(d, '__dict__') and hasattr(d, 'prices_home') and hasattr(d, 'deliveries') for d in player_decisions_list):
+# Ensure player_decisions_list has exactly n_players items in order
+while len(player_decisions_list) < n_players:
+    player_decisions_list.append(None)
+player_decisions_list = player_decisions_list[:n_players]
+
+# Filter out None values for validation
+valid_decisions = [d for d in player_decisions_list if d is not None and d is not Decisions and hasattr(d, '__dict__') and hasattr(d, 'prices_home') and hasattr(d, 'deliveries')]
+
+# Check if we have valid decisions for all players
+has_all_decisions = len(valid_decisions) == n_players
+
+if has_all_decisions:
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("""
     <div style='text-align: center; padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
