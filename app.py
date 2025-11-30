@@ -2359,7 +2359,7 @@ with st.expander("Information Purchases", expanded=False):
     buy_competitor_info = st.checkbox("Buy Competitor Information (£5,000)", value=False, key=f"info_comp_{player_idx}")
     buy_market_shares = st.checkbox("Buy Market Shares Information (£5,000)", value=False, key=f"info_mkt_{player_idx}")
 
-    # Create Decisions object
+# Create Decisions object
     return Decisions(
         implement_major_improvement=implement_major,
         prices_home=prices_home,
