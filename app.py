@@ -1869,21 +1869,45 @@ class Simulation:
     
     def step(self, player_decisions_list: List[Decisions]):
         """Run one quarter for all companies with competitive market mechanics"""
+        # Validate input
+        if not isinstance(player_decisions_list, list):
+            raise TypeError(f"player_decisions_list must be a list, got {type(player_decisions_list)}")
+        
         # Collect all decisions first (needed for competitive demand calculation)
         all_decisions = []
         for i, c in enumerate(self.companies):
             if i < len(player_decisions_list) and player_decisions_list[i] is not None:
-                all_decisions.append(player_decisions_list[i])
+                decision = player_decisions_list[i]
+                # Ensure it's a Decisions object, not a list
+                if isinstance(decision, list):
+                    raise TypeError(f"Decision at index {i} is a list, not a Decisions object. Got: {type(decision)}")
+                if not isinstance(decision, Decisions):
+                    raise TypeError(f"Decision at index {i} is not a Decisions object. Got: {type(decision)}")
+                all_decisions.append(decision)
             else:
-                all_decisions.append(self.auto_decisions(c))
+                # Only create AI decisions if we have 1 player (AI fills remaining slots)
+                # If 2+ players, all companies should be human-controlled
+                if self.n_players == 1:
+                    all_decisions.append(self.auto_decisions(c))
+                else:
+                    # This shouldn't happen if setup is correct, but handle gracefully
+                    raise ValueError(f"Missing decision for company {i} but n_players > 1. All companies should be human-controlled.")
         
         # Ensure we have decisions for all companies
         assert len(all_decisions) == len(self.companies), f"Mismatch: {len(all_decisions)} decisions for {len(self.companies)} companies"
+        
+        # Validate all decisions are Decisions objects
+        for i, dec in enumerate(all_decisions):
+            if not isinstance(dec, Decisions):
+                raise TypeError(f"Decision at index {i} in all_decisions is not a Decisions object. Got: {type(dec)}")
         
         # Now simulate all companies with competitive mechanics
         reports = []
         for i, c in enumerate(self.companies):
             dec = all_decisions[i]
+            # Double-check it's a Decisions object
+            if not isinstance(dec, Decisions):
+                raise TypeError(f"Decision for company {i} is not a Decisions object. Got: {type(dec)}")
             # Pass all companies and decisions for competitive demand calculation
             rep = self.simulate_quarter_for_company(
                 c, dec, 
@@ -1933,17 +1957,40 @@ def parse_bulk_paste(text: str, expected_count: int) -> List[float]:
 
 def create_player_decision_form(player_idx: int, company: CompanyState, economy: Economy) -> Decisions:
     """Create decision form for a single player"""
-    st.markdown(f"### Player {player_idx + 1}: {company.name}")
+    # Player header with styled container
+    st.markdown(f"""
+    <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                padding: 1.5rem; 
+                border-radius: 10px; 
+                margin-bottom: 1.5rem;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
+        <h2 style='color: white; margin: 0; font-size: 1.8rem;'>
+            👤 Player {player_idx + 1}: {company.name}
+        </h2>
+    </div>
+    """, unsafe_allow_html=True)
     
-    # Company metrics
-    col_a, col_b, col_c, col_d, col_e = st.columns(5)
-    col_a.metric("Share price", f"£{company.share_price:0.2f}")
-    col_b.metric("Net worth", f"£{company.net_worth():,.0f}")
-    col_c.metric("Cash", f"£{company.cash:,.0f}")
-    col_d.metric("Employees", f"{company.total_employees():,}")
-    col_e.metric("Machines", f"{company.machines}")
+    # Company metrics in styled cards
+    metric_col1, metric_col2, metric_col3, metric_col4, metric_col5 = st.columns(5)
+    with metric_col1:
+        st.metric("📈 Share Price", f"£{company.share_price:0.2f}")
+    with metric_col2:
+        st.metric("💰 Net Worth", f"£{company.net_worth():,.0f}")
+    with metric_col3:
+        st.metric("💵 Cash", f"£{company.cash:,.0f}")
+    with metric_col4:
+        st.metric("👥 Employees", f"{company.total_employees():,}")
+    with metric_col5:
+        st.metric("⚙️ Machines", f"{company.machines}")
     
-    st.markdown("### 1. Marketing Decisions")
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Section headers with icons
+    st.markdown("""
+    <div style='background-color: #f8f9fa; padding: 1rem; border-radius: 8px; border-left: 4px solid #667eea; margin: 1.5rem 0 1rem 0;'>
+        <h3 style='margin: 0; color: #667eea;'>📢 1. Marketing Decisions</h3>
+    </div>
+    """, unsafe_allow_html=True)
     
     with st.expander("Product Improvements", expanded=False):
         st.info("Implement Major Improvements (will write off all stocks for that product)")
@@ -2106,7 +2153,11 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
                 sales_alloc[a] = val
                 remaining -= val
     
-    st.markdown("### 2. Operations & Production Decisions")
+    st.markdown("""
+    <div style='background-color: #f8f9fa; padding: 1rem; border-radius: 8px; border-left: 4px solid #28a745; margin: 1.5rem 0 1rem 0;'>
+        <h3 style='margin: 0; color: #28a745;'>🏭 2. Operations & Production Decisions</h3>
+    </div>
+    """, unsafe_allow_html=True)
     
     with st.expander("Shift Level & Maintenance", expanded=True):
         shift_level = st.radio("Shift level", [1, 2, 3], index=0, horizontal=True, key=f"shift_{player_idx}")
@@ -2184,7 +2235,11 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
         
         st.markdown(f"**Total units to deliver:** {sum(deliveries.values()):,}")
     
-    st.markdown("### 3. Personnel Decisions")
+    st.markdown("""
+    <div style='background-color: #f8f9fa; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin: 1.5rem 0 1rem 0;'>
+        <h3 style='margin: 0; color: #ffc107;'>👥 3. Personnel Decisions</h3>
+    </div>
+    """, unsafe_allow_html=True)
     
     with st.expander("Salespeople", expanded=True):
         col1, col2, col3 = st.columns(3)
@@ -2230,7 +2285,11 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
             key=f"wage_assy_{player_idx}",
         )
     
-    st.markdown("### 4. Finance Decisions")
+    st.markdown("""
+    <div style='background-color: #f8f9fa; padding: 1rem; border-radius: 8px; border-left: 4px solid #dc3545; margin: 1.5rem 0 1rem 0;'>
+        <h3 style='margin: 0; color: #dc3545;'>💰 4. Finance Decisions</h3>
+    </div>
+    """, unsafe_allow_html=True)
     
     finance_col1, finance_col2 = st.columns(2)
     with finance_col1:
@@ -2323,9 +2382,123 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
         buy_market_shares=buy_market_shares,
     )
 
-st.set_page_config(page_title="Topaz-VBE Business Management Simulation", layout="wide")
+st.set_page_config(
+    page_title="Topaz-VBE Business Management Simulation", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Custom CSS for better styling
+st.markdown("""
+<style>
+    /* Main styling improvements */
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    
+    /* Header styling */
+    h1 {
+        color: #1f77b4;
+        border-bottom: 3px solid #1f77b4;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    h2 {
+        color: #2c3e50;
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    h3 {
+        color: #34495e;
+        margin-top: 1.2rem;
+        margin-bottom: 0.8rem;
+    }
+    
+    /* Metric cards */
+    [data-testid="stMetricValue"] {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    
+    /* Sidebar improvements */
+    .css-1d391kg {
+        padding-top: 2rem;
+    }
+    
+    /* Button styling */
+    .stButton>button {
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    /* Expander styling */
+    .streamlit-expanderHeader {
+        font-weight: 600;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        padding: 0.5rem;
+    }
+    
+    /* Info boxes */
+    .stInfo {
+        border-left: 4px solid #1f77b4;
+        background-color: #e8f4f8;
+    }
+    
+    /* Success messages */
+    .stSuccess {
+        border-left: 4px solid #28a745;
+    }
+    
+    /* Tab styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 8px 8px 0 0;
+        padding: 10px 20px;
+        font-weight: 600;
+    }
+    
+    /* Container styling */
+    .stContainer {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+        margin: 1rem 0;
+    }
+    
+    /* Better spacing */
+    .element-container {
+        margin-bottom: 1rem;
+    }
+    
+    /* Number input styling */
+    input[type="number"] {
+        border-radius: 5px;
+    }
+    
+    /* Selectbox styling */
+    select {
+        border-radius: 5px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # Initialize session state
+if "sim_started" not in st.session_state:
+    st.session_state.sim_started = False
+
 if "sim" not in st.session_state:
     st.session_state.sim = Simulation(n_companies=8, seed=42)
     st.session_state.n_players = 1
@@ -2333,86 +2506,324 @@ if "sim" not in st.session_state:
 if "n_players" not in st.session_state:
     st.session_state.n_players = 1
 
+# ============================================================================
+# START PAGE - Show before simulation starts
+# ============================================================================
+if not st.session_state.sim_started:
+    # Center the content
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        # Hero section
+        st.markdown("""
+        <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    padding: 3rem 2rem; 
+                    border-radius: 20px; 
+                    text-align: center;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                    margin-bottom: 3rem;'>
+            <h1 style='color: white; font-size: 3rem; margin: 0 0 1rem 0;'>
+                🎮 Topaz-VBE
+            </h1>
+            <h2 style='color: white; font-size: 1.8rem; margin: 0 0 1.5rem 0; opacity: 0.95;'>
+                Business Management Simulation
+            </h2>
+            <p style='color: white; font-size: 1.2em; margin: 0; opacity: 0.9;'>
+                Strategic Business Simulation • Multi-Player Support • Competitive Market Dynamics
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Welcome card
+        st.markdown("""
+        <div style='background: #f8f9fa; 
+                    padding: 2rem; 
+                    border-radius: 15px; 
+                    border-left: 5px solid #667eea;
+                    margin-bottom: 2rem;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);'>
+            <h2 style='color: #667eea; margin-top: 0;'>Welcome to the Business Management Simulation</h2>
+            <p style='font-size: 1.1em; color: #555; line-height: 1.6;'>
+                A complete quarterly management simulation with <strong>3 products</strong>, <strong>4 market areas</strong>,<br>
+                and interacting decisions across <strong>Marketing, Operations, Personnel and Finance</strong>.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div style='background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
+                    padding: 1.5rem; 
+                    border-radius: 15px; 
+                    margin: 2rem 0;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>
+            <h3 style='color: white; margin: 0; text-align: center; font-size: 1.5rem;'>🎯 Game Setup</h3>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.info("""
+        **How it works:**
+        - **1 Player**: You compete against 7 AI-controlled companies
+        - **2-8 Players**: Only human players compete (no AI bots)
+        - Your performance is judged primarily by **share price**
+        - Compete in a dynamic market where your decisions affect competitors and vice versa
+        """)
+        
+        # Player selection
+        st.markdown("#### Select Number of Players")
+        n_players_input = st.number_input(
+            "Number of Players",
+            min_value=1,
+            max_value=8,
+            value=st.session_state.n_players,
+            step=1,
+            key="start_n_players",
+            help="Choose how many human players will participate. Remaining companies will be AI-controlled."
+        )
+        
+        # Display player configuration
+        st.markdown("#### Game Configuration")
+        config_col1, config_col2 = st.columns(2)
+        with config_col1:
+            st.metric("Human Players", n_players_input)
+        with config_col2:
+            if n_players_input == 1:
+                st.metric("AI Players", 7)
+            else:
+                st.metric("AI Players", 0)
+                st.caption("Only human players compete")
+        
+        st.markdown("---")
+        
+        # Start button
+        col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 1])
+        with col_btn2:
+            if st.button("🚀 Start Simulation", type="primary", use_container_width=True, key="start_sim"):
+                st.session_state.n_players = n_players_input
+                # If 1 player: 8 companies (1 human + 7 AI)
+                # If 2+ players: only human players (no AI)
+                n_companies = 8 if n_players_input == 1 else n_players_input
+                st.session_state.sim = Simulation(n_companies=n_companies, seed=42)
+                st.session_state.sim.n_players = n_players_input
+                st.session_state.sim_started = True
+                st.session_state.player_decisions = [None] * n_players_input
+                st.rerun()
+        
+        st.markdown("---")
+        
+        # Instructions
+        with st.expander("📖 How to Play", expanded=False):
+            st.markdown("""
+            ### Game Overview
+            
+            You control a manufacturing company competing in a dynamic market. Each quarter, you make decisions about:
+            
+            **1. Marketing Decisions**
+            - Set prices for home and export markets
+            - Allocate advertising budget (Trade Press, Support, Merchandising)
+            - Invest in product development
+            - Allocate salespeople to different market areas
+            - Set credit terms for customers
+            
+            **2. Operations & Production**
+            - Choose shift level (affects machine hours and workforce)
+            - Order materials from suppliers
+            - Schedule production deliveries
+            - Set maintenance hours
+            
+            **3. Personnel**
+            - Recruit, train, or dismiss salespeople and assembly workers
+            - Set wage rates and salaries
+            - Manage workforce capacity
+            
+            **4. Finance**
+            - Set dividend payments (Q1 and Q3 only)
+            - Order or sell machines and vehicles
+            - Purchase market intelligence
+            
+            ### Competitive Market
+            
+            Your decisions directly affect market share:
+            - Lower prices can increase sales but reduce margins
+            - Higher advertising can capture market share from competitors
+            - Product quality affects customer demand
+            - Competitors' actions affect your sales
+            
+            ### Winning Strategy
+            
+            Your performance is judged by **share price**, which is influenced by:
+            - Net worth
+            - Earnings per share
+            - Dividend payments
+            - Overall financial health
+            
+            Make strategic decisions to maximize your company's value!
+            """)
+        
+        st.stop()  # Stop execution here if simulation hasn't started
+
+# ============================================================================
+# MAIN SIMULATION INTERFACE
+# ============================================================================
+
 sim: Simulation = st.session_state.sim
 sim.n_players = st.session_state.n_players
 
-st.title("Topaz-VBE Business Management Simulation")
+# Modern header with gradient effect
+st.markdown("""
+<div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            padding: 2rem; 
+            border-radius: 15px; 
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>
+    <h1 style='color: white; text-align: center; margin: 0; font-size: 2.5rem;'>
+        🏢 Topaz-VBE Business Management Simulation
+    </h1>
+    <p style='color: white; text-align: center; margin-top: 1rem; font-size: 1.1rem; opacity: 0.95;'>
+        Strategic Business Simulation • Multi-Player Support • Competitive Market Dynamics
+    </p>
+</div>
+""", unsafe_allow_html=True)
 
-st.markdown(
-    """
-    This app implements a **complete quarterly management simulation** with 3 products, 4 market areas,  
-    and interacting decisions across **Marketing, Operations, Personnel and Finance**.
-    
-    **Multi-player support (1-8 players)**: Choose number of players, rest are AI competitors.  
-    Your performance is judged primarily by **share price**.
-    """
-)
+# Quick stats bar
+if sim.companies[0].last_report:
+    stats_col1, stats_col2, stats_col3, stats_col4, stats_col5 = st.columns(5)
+    with stats_col1:
+        st.metric("📈 Share Price", f"£{sim.companies[0].share_price:.2f}")
+    with stats_col2:
+        st.metric("💰 Net Worth", f"£{sim.companies[0].net_worth():,.0f}")
+    with stats_col3:
+        st.metric("💵 Cash", f"£{sim.companies[0].cash:,.0f}")
+    with stats_col4:
+        st.metric("👥 Employees", f"{sim.companies[0].total_employees()}")
+    with stats_col5:
+        st.metric("⚙️ Machines", f"{sim.companies[0].machines}")
+    st.markdown("---")
 
-# --- Player selection ---
-st.sidebar.header("Game Setup")
-n_players = st.sidebar.number_input(
-    "Number of Players (1-8)",
-    min_value=1,
-    max_value=8,
-    value=st.session_state.n_players,
-    step=1,
-    key="n_players_input"
-)
+# --- Sidebar with styled sections ---
+st.sidebar.markdown("""
+<div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            padding: 1rem; 
+            border-radius: 10px; 
+            margin-bottom: 1rem;'>
+    <h3 style='color: white; margin: 0; text-align: center;'>🎮 Game Info</h3>
+</div>
+""", unsafe_allow_html=True)
+st.sidebar.metric("👥 Human Players", st.session_state.n_players)
+if st.session_state.n_players == 1:
+    st.sidebar.metric("🤖 AI Players", len(sim.companies) - 1)
+else:
+    st.sidebar.metric("🤖 AI Players", 0)
+    st.sidebar.caption("Only human players")
 
-if n_players != st.session_state.n_players:
-    st.session_state.n_players = n_players
-    sim.n_players = n_players
+st.sidebar.markdown("---")
+
+st.sidebar.markdown("""
+<div style='background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
+            padding: 1rem; 
+            border-radius: 10px; 
+            margin: 1rem 0;'>
+    <h3 style='color: white; margin: 0; text-align: center;'>📈 Economy</h3>
+    <p style='color: white; text-align: center; margin: 0.5rem 0 0 0; font-size: 0.9rem;'>Current Quarter</p>
+</div>
+""", unsafe_allow_html=True)
+econ = sim.economy
+st.sidebar.metric("📅 Year / Quarter", f"Y{econ.year} Q{econ.quarter}")
+st.sidebar.metric("📊 GDP Index", f"{econ.gdp:0.1f}")
+st.sidebar.metric("👷 Unemployment", f"{econ.unemployment:0.1f}%")
+st.sidebar.metric("🏦 Bank Rate", f"{econ.cb_rate:0.2f}%")
+st.sidebar.metric("📦 Material Price", f"£{econ.material_price:0.1f}")
+
+if st.sidebar.button("🔄 Reset Simulation", type="primary"):
+    # If 1 player: 8 companies (1 human + 7 AI)
+    # If 2+ players: only human players (no AI)
+    n_companies = 8 if st.session_state.n_players == 1 else st.session_state.n_players
+    st.session_state.sim = Simulation(n_companies=n_companies, seed=42)
+    st.session_state.sim.n_players = st.session_state.n_players
+    st.session_state.player_decisions = [None] * st.session_state.n_players
     st.rerun()
 
-# --- Economy panel ---
-st.sidebar.header("Economy (Current Quarter)")
-econ = sim.economy
-st.sidebar.metric("Year / Quarter", f"Y{econ.year} Q{econ.quarter}")
-st.sidebar.metric("GDP index", f"{econ.gdp:0.1f}")
-st.sidebar.metric("Unemployment %", f"{econ.unemployment:0.1f}%")
-st.sidebar.metric("Central Bank Rate (next qtr)", f"{econ.cb_rate:0.2f}%")
-st.sidebar.metric("Material price (per 1000 units)", f"£{econ.material_price:0.1f}")
-
-if st.sidebar.button("Reset simulation", type="primary"):
-    st.session_state.sim = Simulation(n_companies=8, seed=42)
-    st.session_state.n_players = 1
+if st.sidebar.button("🏠 Return to Start Page"):
+    st.session_state.sim_started = False
     st.rerun()
 
 # Multi-player decision tabs
+# Use session state to store decisions to avoid issues with tab rendering
+n_players = st.session_state.n_players
+
+if "player_decisions" not in st.session_state:
+    st.session_state.player_decisions = [None] * n_players
+
+player_decisions_list = []
+
 if n_players == 1:
     # Single player - show form directly
-    player_decisions_list = [create_player_decision_form(0, sim.companies[0], sim.economy)]
+    decisions_obj = create_player_decision_form(0, sim.companies[0], sim.economy)
+    if isinstance(decisions_obj, Decisions):
+        player_decisions_list = [decisions_obj]
+        st.session_state.player_decisions[0] = decisions_obj
 else:
     # Multiple players - use tabs
     tab_names = [f"Player {i+1}: {sim.companies[i].name}" for i in range(n_players)]
     tabs = st.tabs(tab_names)
-    player_decisions_list = []
     
     for i in range(n_players):
         with tabs[i]:
-            player_decisions_list.append(create_player_decision_form(i, sim.companies[i], sim.economy))
+            decisions_obj = create_player_decision_form(i, sim.companies[i], sim.economy)
+            if isinstance(decisions_obj, Decisions):
+                st.session_state.player_decisions[i] = decisions_obj
+                if decisions_obj not in player_decisions_list:
+                    player_decisions_list.append(decisions_obj)
+
+# Use session state decisions if available
+if all(isinstance(d, Decisions) for d in st.session_state.player_decisions[:n_players] if d is not None):
+    player_decisions_list = [d for d in st.session_state.player_decisions[:n_players] if d is not None]
 
 # Submit button (only show if we have decisions)
-if player_decisions_list:
-    if st.button("Submit All Decisions and Run Quarter", type="primary", use_container_width=True):
-        # Run simulation with all player decisions
-        reports = sim.step(player_decisions_list)
-        
-        st.success("Quarter completed! View results below.")
-        st.balloons()
+if len(player_decisions_list) == n_players and all(isinstance(d, Decisions) for d in player_decisions_list):
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style='text-align: center; padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                border-radius: 10px; margin: 2rem 0;'>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("🚀 Submit All Decisions and Run Quarter", type="primary", use_container_width=True):
+        # Final validation
+        try:
+            reports = sim.step(player_decisions_list)
+            st.success("Quarter completed! View results below.")
+            st.balloons()
+        except Exception as e:
+            st.error(f"Error running simulation: {str(e)}")
+            st.exception(e)
 
 # Display results for all players
 if sim.companies[0].last_report:
     st.markdown("---")
-    st.markdown("### Results Summary")
+    st.markdown("""
+    <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                padding: 1.5rem; 
+                border-radius: 10px; 
+                margin: 2rem 0 1rem 0;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
+        <h2 style='color: white; margin: 0; text-align: center;'>📊 Results Summary</h2>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Show all companies' key metrics
     results_data = []
     for i, comp in enumerate(sim.companies):
         if comp.last_report:
+            # Determine if company is AI or Player
+            # If n_players == 1: companies 0 is player, 1-7 are AI
+            # If n_players > 1: all companies are players (no AI)
+            if st.session_state.n_players == 1:
+                company_type = "Player" if i < st.session_state.n_players else "AI"
+            else:
+                company_type = "Player"  # All are players when n_players > 1
+            
             results_data.append({
                 "Company": comp.name,
-                "Type": "Player" if i < n_players else "AI",
+                "Type": company_type,
                 "Share Price": f"£{comp.share_price:.2f}",
                 "Net Worth": f"£{comp.net_worth():,.0f}",
                 "Revenue": f"£{comp.last_report.get('revenue', 0):,.0f}",
@@ -2440,7 +2851,15 @@ def make_json_serializable(obj):
 # Display last report if available
 player_company = sim.companies[0]
 if player_company.last_report:
-    st.markdown("### Management Report")
+    st.markdown("""
+    <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                padding: 1.5rem; 
+                border-radius: 10px; 
+                margin: 2rem 0 1rem 0;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
+        <h2 style='color: white; margin: 0; text-align: center;'>📋 Management Report</h2>
+    </div>
+    """, unsafe_allow_html=True)
     
     report = player_company.last_report
     quarter = report.get('quarter', 1)
