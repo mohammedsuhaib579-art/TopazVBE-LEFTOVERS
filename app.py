@@ -705,7 +705,7 @@ class Simulation:
             demand = (
                 base_demand *
                 company_attractiveness
-            )
+        )
         
         return max(0, demand)
     
@@ -1611,7 +1611,7 @@ class Simulation:
             "material_opening": material_opening,
             "material_closing": material_closing,
             "material_delivered": material_delivered_qty,
-            "material_on_order": sum(order.quantity for order in company.material_orders),
+            "material_on_order": sum(getattr(order, 'quantity', 0.0) for order in company.material_orders),
             "stocks": stocks_new,
             "backlog": backlog_new,
             "sales": sales,
@@ -2005,22 +2005,22 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
         <h3 style='margin: 0; color: #667eea;'>📢 1. Marketing Decisions</h3>
     </div>
     """, unsafe_allow_html=True)
-    
-    with st.expander("Product Improvements", expanded=False):
-        st.info("Implement Major Improvements (will write off all stocks for that product)")
-        implement_major = {}
-        for p in PRODUCTS:
+
+with st.expander("Product Improvements", expanded=False):
+    st.info("Implement Major Improvements (will write off all stocks for that product)")
+    implement_major = {}
+    for p in PRODUCTS:
             implement_major[p] = st.checkbox(f"Implement Major Improvement - {p}", key=f"major_{player_idx}_{p}")
-        
-        # Show current star ratings
-        st.markdown("**Current Product Star Ratings:**")
-        star_cols = st.columns(len(PRODUCTS))
-        for i, p in enumerate(PRODUCTS):
-            with star_cols[i]:
-                stars = company.product_star_ratings.get(p, 3)
-                st.metric(p, f"{stars:.1f} ⭐")
     
-    with st.expander("Prices, Credit Terms & Quality", expanded=True):
+    # Show current star ratings
+    st.markdown("**Current Product Star Ratings:**")
+    star_cols = st.columns(len(PRODUCTS))
+    for i, p in enumerate(PRODUCTS):
+        with star_cols[i]:
+                stars = company.product_star_ratings.get(p, 3)
+            st.metric(p, f"{stars:.1f} ⭐")
+
+with st.expander("Prices, Credit Terms & Quality", expanded=True):
         # Bulk paste for prices
         st.markdown("**💡 Bulk Paste Support:** Paste tab/newline separated values (e.g., from AI)")
         paste_prices = st.text_area(
@@ -2030,51 +2030,51 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
             help="Paste values separated by tabs or newlines. Order: Home prices (3), Export prices (3), Assembly times (3), Credit days (1)"
         )
         
-        price_cols = st.columns(len(PRODUCTS))
-        prices_home = {}
-        prices_export = {}
-        assembly_time = {}
+    price_cols = st.columns(len(PRODUCTS))
+    prices_home = {}
+    prices_export = {}
+    assembly_time = {}
         
         # Parse bulk paste if provided
         pasted_values = parse_bulk_paste(paste_prices, 10) if paste_prices else []
-        
-        for i, p in enumerate(PRODUCTS):
-            with price_cols[i]:
-                st.markdown(f"**{p}**")
-                base_home = 100 + 20 * i
+    
+    for i, p in enumerate(PRODUCTS):
+        with price_cols[i]:
+            st.markdown(f"**{p}**")
+            base_home = 100 + 20 * i
                 home_val = pasted_values[i] if len(pasted_values) > i else base_home
-                prices_home[p] = st.number_input(
-                    f"Home price {p} (£/unit)",
-                    min_value=10.0,
-                    max_value=400.0,
+            prices_home[p] = st.number_input(
+                f"Home price {p} (£/unit)",
+                min_value=10.0,
+                max_value=400.0,
                     value=float(home_val),
-                    step=5.0,
+                step=5.0,
                     key=f"ph_{player_idx}_{p}",
-                )
+            )
                 export_val = pasted_values[i + 3] if len(pasted_values) > i + 3 else base_home * 1.1
-                prices_export[p] = st.number_input(
-                    f"Export price {p} (£/unit)",
-                    min_value=10.0,
-                    max_value=400.0,
+            prices_export[p] = st.number_input(
+                f"Export price {p} (£/unit)",
+                min_value=10.0,
+                max_value=400.0,
                     value=float(export_val),
-                    step=5.0,
+                step=5.0,
                     key=f"pe_{player_idx}_{p}",
-                )
+            )
                 assy_val = pasted_values[i + 6] if len(pasted_values) > i + 6 else MIN_ASSEMBLY_TIME[p] * 1.2
-                assembly_time[p] = st.number_input(
-                    f"Assembly time {p} (mins/unit)",
-                    min_value=float(MIN_ASSEMBLY_TIME[p]),
-                    max_value=float(MIN_ASSEMBLY_TIME[p] * 2.0),
+            assembly_time[p] = st.number_input(
+                f"Assembly time {p} (mins/unit)",
+                min_value=float(MIN_ASSEMBLY_TIME[p]),
+                max_value=float(MIN_ASSEMBLY_TIME[p] * 2.0),
                     value=float(assy_val),
-                    step=10.0,
+                step=10.0,
                     key=f"assy_{player_idx}_{p}",
-                )
-        
+            )
+    
         credit_val = pasted_values[9] if len(pasted_values) > 9 else 30
         credit_days = st.slider("Credit days offered to retailers", 15, 90, int(credit_val), 5, key=f"credit_{player_idx}")
-    
-    with st.expander("Advertising (Three Types)", expanded=True):
-        st.markdown("#### Advertising spend per product per area (£000 per quarter)")
+
+with st.expander("Advertising (Three Types)", expanded=True):
+    st.markdown("#### Advertising spend per product per area (£000 per quarter)")
         st.markdown("**💡 Bulk Paste:** Paste 36 values (3 products × 4 areas × 3 types) separated by tabs/newlines")
         paste_adv = st.text_area(
             "Paste advertising values",
@@ -2082,143 +2082,143 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
             height=60,
             help="36 values: Trade Press (12), Support (12), Merchandising (12). Order: P1 areas, P2 areas, P3 areas"
         )
-        
-        advertising_trade_press = {}
-        advertising_support = {}
-        advertising_merchandising = {}
-        
+    
+    advertising_trade_press = {}
+    advertising_support = {}
+    advertising_merchandising = {}
+    
         pasted_adv = parse_bulk_paste(paste_adv, 36) if paste_adv else []
         
         for p_idx, p in enumerate(PRODUCTS):
-            st.markdown(f"**{p}**")
-            area_cols = st.columns(len(AREAS))
+        st.markdown(f"**{p}**")
+        area_cols = st.columns(len(AREAS))
             for a_idx, a in enumerate(AREAS):
                 with area_cols[a_idx]:
-                    st.markdown(f"*{a}*")
+                st.markdown(f"*{a}*")
                     idx = p_idx * 12 + a_idx
                     tp_val = pasted_adv[idx] if len(pasted_adv) > idx else 5.0
-                    trade_press = st.number_input(
-                        "Trade Press",
-                        min_value=0.0,
-                        max_value=100.0,
-                        value=float(tp_val),
-                        step=1.0,
-                        key=f"adv_tp_{player_idx}_{p}_{a}",
-                    )
-                    sup_val = pasted_adv[idx + 12] if len(pasted_adv) > idx + 12 else 5.0
-                    support = st.number_input(
-                        "Support",
-                        min_value=0.0,
-                        max_value=100.0,
-                        value=float(sup_val),
-                        step=1.0,
-                        key=f"adv_sup_{player_idx}_{p}_{a}",
-                    )
-                    merch_val = pasted_adv[idx + 24] if len(pasted_adv) > idx + 24 else 5.0
-                    merchandising = st.number_input(
-                        "Merchandising",
-                        min_value=0.0,
-                        max_value=100.0,
-                        value=float(merch_val),
-                        step=1.0,
-                        key=f"adv_merch_{player_idx}_{p}_{a}",
-                    )
-                    advertising_trade_press[(p, a)] = trade_press * 1000.0
-                    advertising_support[(p, a)] = support * 1000.0
-                    advertising_merchandising[(p, a)] = merchandising * 1000.0
-    
-    with st.expander("Product Development", expanded=True):
-        product_dev = {}
-        dev_cols = st.columns(len(PRODUCTS))
-        for i, p in enumerate(PRODUCTS):
-            with dev_cols[i]:
-                accumulated = company.product_dev_accumulated.get(p, 0.0)
-                st.metric(f"Accumulated {p}", f"£{accumulated:,.0f}")
-                product_dev[p] = st.number_input(
-                    f"Dev spend {p} (£000)",
+                trade_press = st.number_input(
+                    "Trade Press",
                     min_value=0.0,
-                    max_value=200.0,
-                    value=20.0,
-                    step=5.0,
+                    max_value=100.0,
+                        value=float(tp_val),
+                    step=1.0,
+                        key=f"adv_tp_{player_idx}_{p}_{a}",
+                )
+                    sup_val = pasted_adv[idx + 12] if len(pasted_adv) > idx + 12 else 5.0
+                support = st.number_input(
+                    "Support",
+                    min_value=0.0,
+                    max_value=100.0,
+                        value=float(sup_val),
+                    step=1.0,
+                        key=f"adv_sup_{player_idx}_{p}_{a}",
+                )
+                    merch_val = pasted_adv[idx + 24] if len(pasted_adv) > idx + 24 else 5.0
+                merchandising = st.number_input(
+                    "Merchandising",
+                    min_value=0.0,
+                    max_value=100.0,
+                        value=float(merch_val),
+                    step=1.0,
+                        key=f"adv_merch_{player_idx}_{p}_{a}",
+                )
+                advertising_trade_press[(p, a)] = trade_press * 1000.0
+                advertising_support[(p, a)] = support * 1000.0
+                advertising_merchandising[(p, a)] = merchandising * 1000.0
+
+with st.expander("Product Development", expanded=True):
+    product_dev = {}
+    dev_cols = st.columns(len(PRODUCTS))
+    for i, p in enumerate(PRODUCTS):
+        with dev_cols[i]:
+                accumulated = company.product_dev_accumulated.get(p, 0.0)
+            st.metric(f"Accumulated {p}", f"£{accumulated:,.0f}")
+            product_dev[p] = st.number_input(
+                f"Dev spend {p} (£000)",
+                min_value=0.0,
+                max_value=200.0,
+                value=20.0,
+                step=5.0,
                     key=f"dev_{player_idx}_{p}",
-                ) * 1000.0
-    
-    with st.expander("Salespeople Allocation", expanded=True):
+            ) * 1000.0
+
+with st.expander("Salespeople Allocation", expanded=True):
         total_salespeople = company.salespeople
-        st.info(f"You currently have **{total_salespeople}** salespeople.")
-        sales_alloc = {}
-        remaining = total_salespeople
-        
-        sales_cols = st.columns(len(AREAS))
-        for i, a in enumerate(AREAS):
-            with sales_cols[i]:
-                if i == len(AREAS) - 1:
-                    val = remaining
-                    st.metric(a, val)
-                else:
-                    val = st.number_input(
-                        f"Salespeople in {a}",
-                        min_value=0,
-                        max_value=int(remaining),
-                        value=int(remaining // (len(AREAS) - i)),
-                        step=1,
-                        key=f"sales_{player_idx}_{a}",
-                    )
-                sales_alloc[a] = val
-                remaining -= val
+    st.info(f"You currently have **{total_salespeople}** salespeople.")
+    sales_alloc = {}
+    remaining = total_salespeople
     
+    sales_cols = st.columns(len(AREAS))
+    for i, a in enumerate(AREAS):
+        with sales_cols[i]:
+            if i == len(AREAS) - 1:
+                val = remaining
+                st.metric(a, val)
+            else:
+                val = st.number_input(
+                    f"Salespeople in {a}",
+                    min_value=0,
+                    max_value=int(remaining),
+                    value=int(remaining // (len(AREAS) - i)),
+                    step=1,
+                        key=f"sales_{player_idx}_{a}",
+                )
+            sales_alloc[a] = val
+            remaining -= val
+
     st.markdown("""
     <div style='background-color: #f8f9fa; padding: 1rem; border-radius: 8px; border-left: 4px solid #28a745; margin: 1.5rem 0 1rem 0;'>
         <h3 style='margin: 0; color: #28a745;'>🏭 2. Operations & Production Decisions</h3>
     </div>
     """, unsafe_allow_html=True)
-    
-    with st.expander("Shift Level & Maintenance", expanded=True):
+
+with st.expander("Shift Level & Maintenance", expanded=True):
         shift_level = st.radio("Shift level", [1, 2, 3], index=0, horizontal=True, key=f"shift_{player_idx}")
-        st.info(f"Shift {shift_level}: {MACHINE_HOURS_PER_SHIFT[shift_level]} hours/machine, {MACHINISTS_PER_MACHINE[shift_level]} machinists/machine")
-        
-        maint_hours = st.number_input(
-            "Contracted maintenance hours per machine",
-            min_value=0.0,
-            max_value=200.0,
-            value=40.0,
-            step=5.0,
+    st.info(f"Shift {shift_level}: {MACHINE_HOURS_PER_SHIFT[shift_level]} hours/machine, {MACHINISTS_PER_MACHINE[shift_level]} machinists/machine")
+    
+    maint_hours = st.number_input(
+        "Contracted maintenance hours per machine",
+        min_value=0.0,
+        max_value=200.0,
+        value=40.0,
+        step=5.0,
             key=f"maint_{player_idx}",
-        )
-    
-    with st.expander("Materials Ordering", expanded=True):
-        materials_supplier = st.selectbox(
-            "Material Supplier",
-            options=[0, 1, 2, 3],
-            format_func=lambda x: f"Supplier {x}: {SUPPLIERS[x]['discount']*100:.0f}% discount, Min order: {SUPPLIERS[x]['min_order']:,.0f}",
+    )
+
+with st.expander("Materials Ordering", expanded=True):
+    materials_supplier = st.selectbox(
+        "Material Supplier",
+        options=[0, 1, 2, 3],
+        format_func=lambda x: f"Supplier {x}: {SUPPLIERS[x]['discount']*100:.0f}% discount, Min order: {SUPPLIERS[x]['min_order']:,.0f}",
             key=f"supplier_{player_idx}",
-        )
-        
-        supplier_info = SUPPLIERS[materials_supplier]
-        st.info(f"Discount: {supplier_info['discount']*100:.0f}%, Delivery charge: £{supplier_info['delivery_charge']}, Min order: {supplier_info['min_order']:,.0f}")
-        
-        materials_quantity = st.number_input(
-            "Materials order quantity (units) – for quarter after next",
-            min_value=0.0,
-            max_value=50_000.0,
-            value=6_000.0,
-            step=500.0,
-            key=f"mat_qty_{player_idx}",
-        )
-        
-        if materials_supplier != 0 and materials_supplier != 3:
-            materials_num_deliveries = st.number_input(
-                "Number of deliveries",
-                min_value=1,
-                max_value=12,
-                value=1,
-                step=1,
-                key=f"mat_del_{player_idx}",
-            )
-        else:
-            materials_num_deliveries = 0 if materials_supplier == 0 else 12
+    )
     
-    with st.expander("Delivery Schedule (units to deliver next quarter)", expanded=True):
+    supplier_info = SUPPLIERS[materials_supplier]
+    st.info(f"Discount: {supplier_info['discount']*100:.0f}%, Delivery charge: £{supplier_info['delivery_charge']}, Min order: {supplier_info['min_order']:,.0f}")
+    
+    materials_quantity = st.number_input(
+        "Materials order quantity (units) – for quarter after next",
+        min_value=0.0,
+        max_value=50_000.0,
+        value=6_000.0,
+        step=500.0,
+            key=f"mat_qty_{player_idx}",
+    )
+    
+    if materials_supplier != 0 and materials_supplier != 3:
+        materials_num_deliveries = st.number_input(
+            "Number of deliveries",
+            min_value=1,
+            max_value=12,
+            value=1,
+            step=1,
+                key=f"mat_del_{player_idx}",
+        )
+    else:
+        materials_num_deliveries = 0 if materials_supplier == 0 else 12
+
+with st.expander("Delivery Schedule (units to deliver next quarter)", expanded=True):
         st.markdown("**💡 Bulk Paste:** Paste 12 values (3 products × 4 areas) separated by tabs/newlines")
         paste_del = st.text_area(
             "Paste delivery values",
@@ -2227,75 +2227,75 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
             help="12 values: P1 areas (4), P2 areas (4), P3 areas (4)"
         )
         
-        deliveries = {}
+    deliveries = {}
         pasted_del = parse_bulk_paste(paste_del, 12) if paste_del else []
         
         for p_idx, p in enumerate(PRODUCTS):
-            st.markdown(f"**{p}**")
-            area_cols = st.columns(len(AREAS))
+        st.markdown(f"**{p}**")
+        area_cols = st.columns(len(AREAS))
             for a_idx, area in enumerate(AREAS):
                 with area_cols[a_idx]:
                     idx = p_idx * 4 + a_idx
                     del_val = int(pasted_del[idx]) if len(pasted_del) > idx else 0
-                    val = st.number_input(
-                        f"{area}",
-                        min_value=0,
-                        max_value=10_000,
+                val = st.number_input(
+                    f"{area}",
+                    min_value=0,
+                    max_value=10_000,
                         value=del_val,
-                        step=50,
+                    step=50,
                         key=f"del_{player_idx}_{p}_{area}",
-                    )
-                    deliveries[(p, area)] = val
-        
-        st.markdown(f"**Total units to deliver:** {sum(deliveries.values()):,}")
+                )
+                deliveries[(p, area)] = val
     
+    st.markdown(f"**Total units to deliver:** {sum(deliveries.values()):,}")
+
     st.markdown("""
     <div style='background-color: #f8f9fa; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin: 1.5rem 0 1rem 0;'>
         <h3 style='margin: 0; color: #ffc107;'>👥 3. Personnel Decisions</h3>
     </div>
     """, unsafe_allow_html=True)
-    
-    with st.expander("Salespeople", expanded=True):
-        col1, col2, col3 = st.columns(3)
-        with col1:
+
+with st.expander("Salespeople", expanded=True):
+    col1, col2, col3 = st.columns(3)
+    with col1:
             recruit_sales = st.number_input("Recruit salespeople", min_value=0, max_value=20, value=0, step=1, key=f"rec_sales_{player_idx}")
-        with col2:
+    with col2:
             dismiss_sales = st.number_input("Dismiss salespeople", min_value=0, max_value=int(company.salespeople), value=0, step=1, key=f"dis_sales_{player_idx}")
-        with col3:
+    with col3:
             train_sales = st.number_input("Train salespeople from unemployed (max 9)", min_value=0, max_value=9, value=0, step=1, key=f"train_sales_{player_idx}")
-        
-        sales_salary = st.number_input(
-            "Sales salary per quarter (£)",
-            min_value=float(MIN_SALES_SALARY_PER_QUARTER),
-            max_value=50_000.0,
-            value=float(company.sales_salary),
-            step=500.0,
-            key=f"sal_sales_{player_idx}",
-        )
-        sales_commission = st.number_input(
-            "Sales commission (%)",
-            min_value=0.0,
-            max_value=20.0,
-            value=float(company.sales_commission_rate * 100),
-            step=0.5,
-            key=f"comm_sales_{player_idx}",
-        )
     
-    with st.expander("Assembly Workers", expanded=True):
-        col1, col2, col3 = st.columns(3)
-        with col1:
+    sales_salary = st.number_input(
+        "Sales salary per quarter (£)",
+        min_value=float(MIN_SALES_SALARY_PER_QUARTER),
+        max_value=50_000.0,
+            value=float(company.sales_salary),
+        step=500.0,
+            key=f"sal_sales_{player_idx}",
+    )
+    sales_commission = st.number_input(
+        "Sales commission (%)",
+        min_value=0.0,
+        max_value=20.0,
+            value=float(company.sales_commission_rate * 100),
+        step=0.5,
+            key=f"comm_sales_{player_idx}",
+    )
+
+with st.expander("Assembly Workers", expanded=True):
+    col1, col2, col3 = st.columns(3)
+    with col1:
             recruit_assembly = st.number_input("Recruit assembly workers", min_value=0, max_value=50, value=0, step=1, key=f"rec_assy_{player_idx}")
-        with col2:
+    with col2:
             dismiss_assembly = st.number_input("Dismiss assembly workers", min_value=0, max_value=int(company.assembly_workers), value=0, step=1, key=f"dis_assy_{player_idx}")
-        with col3:
+    with col3:
             train_assembly = st.number_input("Train assembly workers from unemployed (max 9)", min_value=0, max_value=9, value=0, step=1, key=f"train_assy_{player_idx}")
-        
-        assembly_wage_rate = st.number_input(
-            "Assembly worker hourly wage rate (£)",
-            min_value=ASSEMBLY_MIN_WAGE_RATE,
-            max_value=50.0,
+    
+    assembly_wage_rate = st.number_input(
+        "Assembly worker hourly wage rate (£)",
+        min_value=ASSEMBLY_MIN_WAGE_RATE,
+        max_value=50.0,
             value=float(company.assembly_wage_rate),
-            step=0.50,
+        step=0.50,
             key=f"wage_assy_{player_idx}",
         )
     
@@ -2304,61 +2304,61 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
         <h3 style='margin: 0; color: #dc3545;'>💰 4. Finance Decisions</h3>
     </div>
     """, unsafe_allow_html=True)
-    
-    finance_col1, finance_col2 = st.columns(2)
-    with finance_col1:
-        dividend_per_share = st.number_input(
-            "Dividend per share (pence) - Q1 and Q3 only",
-            min_value=0.0,
-            max_value=100.0,
-            value=0.0,
-            step=1.0,
+
+finance_col1, finance_col2 = st.columns(2)
+with finance_col1:
+    dividend_per_share = st.number_input(
+        "Dividend per share (pence) - Q1 and Q3 only",
+        min_value=0.0,
+        max_value=100.0,
+        value=0.0,
+        step=1.0,
             disabled=(economy.quarter not in [1, 3]),
             key=f"div_{player_idx}",
-        )
+    )
         if economy.quarter not in [1, 3]:
-            st.caption("Dividends can only be paid in Q1 and Q3")
-    
-    with finance_col2:
-        management_budget = st.number_input(
-            "Management budget (£)",
-            min_value=float(MIN_MANAGEMENT_BUDGET),
-            max_value=200_000.0,
+        st.caption("Dividends can only be paid in Q1 and Q3")
+
+with finance_col2:
+    management_budget = st.number_input(
+        "Management budget (£)",
+        min_value=float(MIN_MANAGEMENT_BUDGET),
+        max_value=200_000.0,
             value=float(company.last_report.get("management_budget", MIN_MANAGEMENT_BUDGET) if company.last_report else MIN_MANAGEMENT_BUDGET),
-            step=5000.0,
+        step=5000.0,
             key=f"mgmt_{player_idx}",
-        )
-    
-    with st.expander("Fixed Assets", expanded=False):
-        col1, col2 = st.columns(2)
-        with col1:
-            machines_to_order = st.number_input(
-                "Machines to order (requires creditworthiness check)",
-                min_value=0,
-                max_value=10,
-                value=0,
-                step=1,
+    )
+
+with st.expander("Fixed Assets", expanded=False):
+    col1, col2 = st.columns(2)
+    with col1:
+        machines_to_order = st.number_input(
+            "Machines to order (requires creditworthiness check)",
+            min_value=0,
+            max_value=10,
+            value=0,
+            step=1,
                 key=f"mach_order_{player_idx}",
-            )
+        )
             creditworthiness = company.calculate_creditworthiness()
-            st.info(f"Creditworthiness: £{creditworthiness:,.0f} (max {int(creditworthiness / MACHINE_DEPOSIT)} machines)")
-        
-        with col2:
-            machines_to_sell = st.number_input(
-                "Machines to sell",
-                min_value=0,
+        st.info(f"Creditworthiness: £{creditworthiness:,.0f} (max {int(creditworthiness / MACHINE_DEPOSIT)} machines)")
+    
+    with col2:
+        machines_to_sell = st.number_input(
+            "Machines to sell",
+            min_value=0,
                 max_value=int(company.machines),
-                value=0,
-                step=1,
+            value=0,
+            step=1,
                 key=f"mach_sell_{player_idx}",
-            )
+        )
             vans_to_buy = st.number_input("Vehicles to buy", min_value=0, max_value=10, value=0, step=1, key=f"van_buy_{player_idx}")
             vans_to_sell = st.number_input("Vehicles to sell", min_value=0, max_value=int(company.vehicles), value=0, step=1, key=f"van_sell_{player_idx}")
-    
-    with st.expander("Information Purchases", expanded=False):
+
+with st.expander("Information Purchases", expanded=False):
         buy_competitor_info = st.checkbox("Buy Competitor Information (£5,000)", value=False, key=f"info_comp_{player_idx}")
         buy_market_shares = st.checkbox("Buy Market Shares Information (£5,000)", value=False, key=f"info_mkt_{player_idx}")
-    
+
     # Create Decisions object
     return Decisions(
         implement_major_improvement=implement_major,
@@ -2395,7 +2395,7 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
         buy_competitor_info=buy_competitor_info,
         buy_market_shares=buy_market_shares,
     )
-
+    
 st.set_page_config(
     page_title="Leftovers Business Simulation (Topaz-VBE)", 
     layout="wide",
@@ -2831,8 +2831,8 @@ if has_all_decisions:
         # Final validation
         try:
             reports = sim.step(player_decisions_list)
-            st.success("Quarter completed! View results below.")
-            st.balloons()
+    st.success("Quarter completed! View results below.")
+    st.balloons()
         except Exception as e:
             st.error(f"Error running simulation: {str(e)}")
             st.exception(e)
@@ -2873,7 +2873,7 @@ if sim.companies[0].last_report:
     
     if results_data:
         st.dataframe(pd.DataFrame(results_data), width='stretch')
-    
+
 # Helper function to convert tuple keys to JSON-serializable format
 def make_json_serializable(obj):
     """Recursively convert tuple keys to strings for JSON serialization"""
