@@ -2006,19 +2006,19 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
     </div>
     """, unsafe_allow_html=True)
 
-with st.expander("Product Improvements", expanded=False):
-    st.info("Implement Major Improvements (will write off all stocks for that product)")
-    implement_major = {}
-    for p in PRODUCTS:
+    with st.expander("Product Improvements", expanded=False):
+        st.info("Implement Major Improvements (will write off all stocks for that product)")
+        implement_major = {}
+        for p in PRODUCTS:
             implement_major[p] = st.checkbox(f"Implement Major Improvement - {p}", key=f"major_{player_idx}_{p}")
-    
-    # Show current star ratings
-    st.markdown("**Current Product Star Ratings:**")
-    star_cols = st.columns(len(PRODUCTS))
-    for i, p in enumerate(PRODUCTS):
-        with star_cols[i]:
+        
+        # Show current star ratings
+        st.markdown("**Current Product Star Ratings:**")
+        star_cols = st.columns(len(PRODUCTS))
+        for i, p in enumerate(PRODUCTS):
+            with star_cols[i]:
                 stars = company.product_star_ratings.get(p, 3)
-            st.metric(p, f"{stars:.1f} ⭐")
+                st.metric(p, f"{stars:.1f} ⭐")
 
     with st.expander("Prices, Credit Terms & Quality", expanded=True):
         # Bulk paste for prices
@@ -3210,4 +3210,5 @@ for i, comp in enumerate(sim.companies[1:], 1):
     })
 if competitor_df:
     st.dataframe(pd.DataFrame(competitor_df), width='stretch')
+
 
