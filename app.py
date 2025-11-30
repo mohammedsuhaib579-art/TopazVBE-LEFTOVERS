@@ -2338,22 +2338,22 @@ with st.expander("Fixed Assets", expanded=False):
             max_value=10,
             value=0,
             step=1,
-                key=f"mach_order_{player_idx}",
+            key=f"mach_order_{player_idx}",
         )
-            creditworthiness = company.calculate_creditworthiness()
+        creditworthiness = company.calculate_creditworthiness()
         st.info(f"Creditworthiness: £{creditworthiness:,.0f} (max {int(creditworthiness / MACHINE_DEPOSIT)} machines)")
     
     with col2:
         machines_to_sell = st.number_input(
             "Machines to sell",
             min_value=0,
-                max_value=int(company.machines),
+            max_value=int(company.machines),
             value=0,
             step=1,
-                key=f"mach_sell_{player_idx}",
+            key=f"mach_sell_{player_idx}",
         )
-            vans_to_buy = st.number_input("Vehicles to buy", min_value=0, max_value=10, value=0, step=1, key=f"van_buy_{player_idx}")
-            vans_to_sell = st.number_input("Vehicles to sell", min_value=0, max_value=int(company.vehicles), value=0, step=1, key=f"van_sell_{player_idx}")
+        vans_to_buy = st.number_input("Vehicles to buy", min_value=0, max_value=10, value=0, step=1, key=f"van_buy_{player_idx}")
+        vans_to_sell = st.number_input("Vehicles to sell", min_value=0, max_value=int(company.vehicles), value=0, step=1, key=f"van_sell_{player_idx}")
 
 with st.expander("Information Purchases", expanded=False):
     buy_competitor_info = st.checkbox("Buy Competitor Information (£5,000)", value=False, key=f"info_comp_{player_idx}")
