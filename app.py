@@ -1611,7 +1611,7 @@ class Simulation:
             "material_opening": material_opening,
             "material_closing": material_closing,
             "material_delivered": material_delivered_qty,
-            "material_on_order": sum(order.qty for order in company.material_orders),
+            "material_on_order": sum(order.quantity for order in company.material_orders),
             "stocks": stocks_new,
             "backlog": backlog_new,
             "sales": sales,
