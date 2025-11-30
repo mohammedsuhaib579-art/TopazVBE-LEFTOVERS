@@ -640,7 +640,7 @@ class Simulation:
         )
         
         # COMPETITIVE MARKET MECHANICS: Calculate market share based on relative attractiveness
-        if all_companies and all_decisions and len(all_companies) > 1:
+        if all_companies and all_decisions and len(all_companies) > 1 and len(all_decisions) == len(all_companies):
             # Calculate attractiveness for all competitors
             competitor_attractiveness = []
             for comp, dec in zip(all_companies, all_decisions):
@@ -1266,7 +1266,7 @@ class Simulation:
                 demand_units = int(self.demand_for_product(
                     company, decisions, product, area, 
                     all_companies=all_companies if all_companies else self.companies,
-                    all_decisions=all_decisions
+                    all_decisions=all_decisions if all_decisions and len(all_decisions) == len(all_companies if all_companies else self.companies) else None
                 ))
                 new_orders[key] = demand_units
                 
@@ -1872,10 +1872,13 @@ class Simulation:
         # Collect all decisions first (needed for competitive demand calculation)
         all_decisions = []
         for i, c in enumerate(self.companies):
-            if i < len(player_decisions_list):
+            if i < len(player_decisions_list) and player_decisions_list[i] is not None:
                 all_decisions.append(player_decisions_list[i])
             else:
                 all_decisions.append(self.auto_decisions(c))
+        
+        # Ensure we have decisions for all companies
+        assert len(all_decisions) == len(self.companies), f"Mismatch: {len(all_decisions)} decisions for {len(self.companies)} companies"
         
         # Now simulate all companies with competitive mechanics
         reports = []
@@ -2435,6 +2438,7 @@ def make_json_serializable(obj):
         return obj
 
 # Display last report if available
+player_company = sim.companies[0]
 if player_company.last_report:
     st.markdown("### Management Report")
     
