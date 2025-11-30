@@ -2043,35 +2043,41 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
                 st.markdown(f"**{p}**")
                 base_home = 100 + 20 * i
                 home_val = pasted_values[i] if len(pasted_values) > i else base_home
+                home_val = max(10.0, min(400.0, float(home_val)))  # Clamp to valid range
                 prices_home[p] = st.number_input(
                     f"Home price {p} (£/unit)",
                     min_value=10.0,
                     max_value=400.0,
-                    value=float(home_val),
+                    value=home_val,
                     step=5.0,
                     key=f"ph_{player_idx}_{p}",
                 )
                 export_val = pasted_values[i + 3] if len(pasted_values) > i + 3 else base_home * 1.1
+                export_val = max(10.0, min(400.0, float(export_val)))  # Clamp to valid range
                 prices_export[p] = st.number_input(
                     f"Export price {p} (£/unit)",
                     min_value=10.0,
                     max_value=400.0,
-                    value=float(export_val),
+                    value=export_val,
                     step=5.0,
                     key=f"pe_{player_idx}_{p}",
                 )
                 assy_val = pasted_values[i + 6] if len(pasted_values) > i + 6 else MIN_ASSEMBLY_TIME[p] * 1.2
+                min_assy = float(MIN_ASSEMBLY_TIME[p])
+                max_assy = float(MIN_ASSEMBLY_TIME[p] * 2.0)
+                assy_val = max(min_assy, min(max_assy, float(assy_val)))  # Clamp to valid range
                 assembly_time[p] = st.number_input(
                     f"Assembly time {p} (mins/unit)",
-                    min_value=float(MIN_ASSEMBLY_TIME[p]),
-                    max_value=float(MIN_ASSEMBLY_TIME[p] * 2.0),
-                    value=float(assy_val),
+                    min_value=min_assy,
+                    max_value=max_assy,
+                    value=assy_val,
                     step=10.0,
                     key=f"assy_{player_idx}_{p}",
                 )
         
         credit_val = pasted_values[9] if len(pasted_values) > 9 else 30
-        credit_days = st.slider("Credit days offered to retailers", 15, 90, int(credit_val), 5, key=f"credit_{player_idx}")
+        credit_val = max(15, min(90, int(credit_val)))  # Clamp to valid range
+        credit_days = st.slider("Credit days offered to retailers", 15, 90, credit_val, 5, key=f"credit_{player_idx}")
 
     with st.expander("Advertising (Three Types)", expanded=True):
         st.markdown("#### Advertising spend per product per area (£000 per quarter)")
@@ -2097,29 +2103,32 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
                     st.markdown(f"*{a}*")
                     idx = p_idx * 12 + a_idx
                     tp_val = pasted_adv[idx] if len(pasted_adv) > idx else 5.0
+                    tp_val = max(0.0, min(100.0, float(tp_val)))  # Clamp to valid range
                     trade_press = st.number_input(
                         "Trade Press",
                         min_value=0.0,
                         max_value=100.0,
-                        value=float(tp_val),
+                        value=tp_val,
                         step=1.0,
                         key=f"adv_tp_{player_idx}_{p}_{a}",
                     )
                     sup_val = pasted_adv[idx + 12] if len(pasted_adv) > idx + 12 else 5.0
+                    sup_val = max(0.0, min(100.0, float(sup_val)))  # Clamp to valid range
                     support = st.number_input(
                         "Support",
                         min_value=0.0,
                         max_value=100.0,
-                        value=float(sup_val),
+                        value=sup_val,
                         step=1.0,
                         key=f"adv_sup_{player_idx}_{p}_{a}",
                     )
                     merch_val = pasted_adv[idx + 24] if len(pasted_adv) > idx + 24 else 5.0
+                    merch_val = max(0.0, min(100.0, float(merch_val)))  # Clamp to valid range
                     merchandising = st.number_input(
                         "Merchandising",
                         min_value=0.0,
                         max_value=100.0,
-                        value=float(merch_val),
+                        value=merch_val,
                         step=1.0,
                         key=f"adv_merch_{player_idx}_{p}_{a}",
                     )
@@ -2237,6 +2246,7 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
                 with area_cols[a_idx]:
                     idx = p_idx * 4 + a_idx
                     del_val = int(pasted_del[idx]) if len(pasted_del) > idx else 0
+                    del_val = max(0, min(10_000, del_val))  # Clamp to valid range
                     val = st.number_input(
                         f"{area}",
                         min_value=0,
