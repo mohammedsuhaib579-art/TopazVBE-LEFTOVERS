@@ -2024,10 +2024,10 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
         # Bulk paste for prices
         st.markdown("**💡 Bulk Paste Support:** Paste tab/newline separated values (e.g., from AI)")
         paste_prices = st.text_area(
-        "Paste prices (Home P1, Home P2, Home P3, Export P1, Export P2, Export P3, Assembly P1, Assembly P2, Assembly P3, Credit Days)",
-        key=f"paste_prices_{player_idx}",
-        height=60,
-        help="Paste values separated by tabs or newlines. Order: Home prices (3), Export prices (3), Assembly times (3), Credit days (1)"
+            "Paste prices (Home P1, Home P2, Home P3, Export P1, Export P2, Export P3, Assembly P1, Assembly P2, Assembly P3, Credit Days)",
+            key=f"paste_prices_{player_idx}",
+            height=60,
+            help="Paste values separated by tabs or newlines. Order: Home prices (3), Export prices (3), Assembly times (3), Credit days (1)"
         )
         
         price_cols = st.columns(len(PRODUCTS))
@@ -2077,10 +2077,10 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
         st.markdown("#### Advertising spend per product per area (£000 per quarter)")
         st.markdown("**💡 Bulk Paste:** Paste 36 values (3 products × 4 areas × 3 types) separated by tabs/newlines")
         paste_adv = st.text_area(
-        "Paste advertising values",
-        key=f"paste_adv_{player_idx}",
-        height=60,
-        help="36 values: Trade Press (12), Support (12), Merchandising (12). Order: P1 areas, P2 areas, P3 areas"
+            "Paste advertising values",
+            key=f"paste_adv_{player_idx}",
+            height=60,
+            help="36 values: Trade Press (12), Support (12), Merchandising (12). Order: P1 areas, P2 areas, P3 areas"
         )
         
         advertising_trade_press = {}
@@ -2178,20 +2178,20 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
         st.info(f"Shift {shift_level}: {MACHINE_HOURS_PER_SHIFT[shift_level]} hours/machine, {MACHINISTS_PER_MACHINE[shift_level]} machinists/machine")
         
         maint_hours = st.number_input(
-        "Contracted maintenance hours per machine",
-        min_value=0.0,
-        max_value=200.0,
-        value=40.0,
-        step=5.0,
-        key=f"maint_{player_idx}",
+            "Contracted maintenance hours per machine",
+            min_value=0.0,
+            max_value=200.0,
+            value=40.0,
+            step=5.0,
+            key=f"maint_{player_idx}",
         )
 
     with st.expander("Materials Ordering", expanded=True):
         materials_supplier = st.selectbox(
-        "Material Supplier",
-        options=[0, 1, 2, 3],
-        format_func=lambda x: f"Supplier {x}: {SUPPLIERS[x]['discount']*100:.0f}% discount, Min order: {SUPPLIERS[x]['min_order']:,.0f}",
-        key=f"supplier_{player_idx}",
+            "Material Supplier",
+            options=[0, 1, 2, 3],
+            format_func=lambda x: f"Supplier {x}: {SUPPLIERS[x]['discount']*100:.0f}% discount, Min order: {SUPPLIERS[x]['min_order']:,.0f}",
+            key=f"supplier_{player_idx}",
         )
         
         supplier_info = SUPPLIERS[materials_supplier]
@@ -2307,27 +2307,27 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
 
     finance_col1, finance_col2 = st.columns(2)
     with finance_col1:
-    dividend_per_share = st.number_input(
-        "Dividend per share (pence) - Q1 and Q3 only",
-        min_value=0.0,
-        max_value=100.0,
-        value=0.0,
-        step=1.0,
-        disabled=(economy.quarter not in [1, 3]),
-        key=f"div_{player_idx}",
-    )
-    if economy.quarter not in [1, 3]:
-        st.caption("Dividends can only be paid in Q1 and Q3")
+        dividend_per_share = st.number_input(
+            "Dividend per share (pence) - Q1 and Q3 only",
+            min_value=0.0,
+            max_value=100.0,
+            value=0.0,
+            step=1.0,
+            disabled=(economy.quarter not in [1, 3]),
+            key=f"div_{player_idx}",
+        )
+        if economy.quarter not in [1, 3]:
+            st.caption("Dividends can only be paid in Q1 and Q3")
 
-with finance_col2:
-    management_budget = st.number_input(
-        "Management budget (£)",
-        min_value=float(MIN_MANAGEMENT_BUDGET),
-        max_value=200_000.0,
+    with finance_col2:
+        management_budget = st.number_input(
+            "Management budget (£)",
+            min_value=float(MIN_MANAGEMENT_BUDGET),
+            max_value=200_000.0,
             value=float(company.last_report.get("management_budget", MIN_MANAGEMENT_BUDGET) if company.last_report else MIN_MANAGEMENT_BUDGET),
-        step=5000.0,
-        key=f"mgmt_{player_idx}",
-    )
+            step=5000.0,
+            key=f"mgmt_{player_idx}",
+        )
 
     with st.expander("Fixed Assets", expanded=False):
         col1, col2 = st.columns(2)
@@ -3210,5 +3210,4 @@ for i, comp in enumerate(sim.companies[1:], 1):
     })
 if competitor_df:
     st.dataframe(pd.DataFrame(competitor_df), width='stretch')
-
 
