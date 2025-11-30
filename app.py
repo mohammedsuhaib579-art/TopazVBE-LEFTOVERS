@@ -1878,12 +1878,10 @@ class Simulation:
         for i, c in enumerate(self.companies):
             if i < len(player_decisions_list) and player_decisions_list[i] is not None:
                 decision = player_decisions_list[i]
-                # Ensure it's a Decisions object, not a list
+                # Basic validation - just ensure it's not a list
                 if isinstance(decision, list):
                     raise TypeError(f"Decision at index {i} is a list, not a Decisions object. Got: {type(decision)}")
-                # Check if it has Decisions attributes (more flexible than isinstance due to module context)
-                if not hasattr(decision, 'prices_home') or not hasattr(decision, 'deliveries'):
-                    raise TypeError(f"Decision at index {i} doesn't have Decisions attributes. Got: {type(decision)}")
+                # Just append - if it's not valid, it will fail naturally when used
                 all_decisions.append(decision)
             else:
                 # Only create AI decisions if we have 1 player (AI fills remaining slots)
@@ -1897,10 +1895,10 @@ class Simulation:
         # Ensure we have decisions for all companies
         assert len(all_decisions) == len(self.companies), f"Mismatch: {len(all_decisions)} decisions for {len(self.companies)} companies"
         
-        # Validate all decisions have required attributes (more flexible check)
+        # Basic validation - ensure no None values
         for i, dec in enumerate(all_decisions):
-            if not hasattr(dec, 'prices_home') or not hasattr(dec, 'deliveries'):
-                raise TypeError(f"Decision at index {i} in all_decisions doesn't have Decisions attributes. Got: {type(dec)}")
+            if dec is None:
+                raise ValueError(f"Decision at index {i} is None")
         
         # Now simulate all companies with competitive mechanics
         reports = []
@@ -2756,7 +2754,8 @@ player_decisions_list = []
 if n_players == 1:
     # Single player - show form directly
     decisions_obj = create_player_decision_form(0, sim.companies[0], sim.economy)
-    if isinstance(decisions_obj, Decisions):
+    # Check if it's a Decisions instance (not the class) by checking for attributes
+    if decisions_obj is not None and hasattr(decisions_obj, 'prices_home') and hasattr(decisions_obj, 'deliveries'):
         player_decisions_list = [decisions_obj]
         st.session_state.player_decisions[0] = decisions_obj
 else:
@@ -2767,17 +2766,22 @@ else:
     for i in range(n_players):
         with tabs[i]:
             decisions_obj = create_player_decision_form(i, sim.companies[i], sim.economy)
-            if isinstance(decisions_obj, Decisions):
+            # Check if it's a Decisions instance (not the class) by checking for attributes
+            if decisions_obj is not None and hasattr(decisions_obj, 'prices_home') and hasattr(decisions_obj, 'deliveries'):
                 st.session_state.player_decisions[i] = decisions_obj
                 if decisions_obj not in player_decisions_list:
                     player_decisions_list.append(decisions_obj)
 
-# Use session state decisions if available
-if all(isinstance(d, Decisions) for d in st.session_state.player_decisions[:n_players] if d is not None):
-    player_decisions_list = [d for d in st.session_state.player_decisions[:n_players] if d is not None]
+# Use session state decisions if available (check by attributes, not isinstance)
+valid_decisions = []
+for d in st.session_state.player_decisions[:n_players]:
+    if d is not None and hasattr(d, 'prices_home') and hasattr(d, 'deliveries'):
+        valid_decisions.append(d)
+if len(valid_decisions) == n_players:
+    player_decisions_list = valid_decisions
 
 # Submit button (only show if we have decisions)
-if len(player_decisions_list) == n_players and all(isinstance(d, Decisions) for d in player_decisions_list):
+if len(player_decisions_list) == n_players and all(d is not None and hasattr(d, 'prices_home') and hasattr(d, 'deliveries') for d in player_decisions_list):
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("""
     <div style='text-align: center; padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
@@ -3167,5 +3171,4 @@ for i, comp in enumerate(sim.companies[1:], 1):
     })
 if competitor_df:
     st.dataframe(pd.DataFrame(competitor_df), use_container_width=True)
-
 
