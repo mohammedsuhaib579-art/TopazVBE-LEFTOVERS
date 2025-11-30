@@ -2006,7 +2006,7 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
     </div>
     """, unsafe_allow_html=True)
 
-with st.expander("Product Improvements", expanded=False):
+    with st.expander("Product Improvements", expanded=False):
     st.info("Implement Major Improvements (will write off all stocks for that product)")
     implement_major = {}
     for p in PRODUCTS:
@@ -2020,7 +2020,7 @@ with st.expander("Product Improvements", expanded=False):
             stars = company.product_star_ratings.get(p, 3)
             st.metric(p, f"{stars:.1f} ⭐")
 
-with st.expander("Prices, Credit Terms & Quality", expanded=True):
+    with st.expander("Prices, Credit Terms & Quality", expanded=True):
     # Bulk paste for prices
     st.markdown("**💡 Bulk Paste Support:** Paste tab/newline separated values (e.g., from AI)")
     paste_prices = st.text_area(
@@ -2073,7 +2073,7 @@ with st.expander("Prices, Credit Terms & Quality", expanded=True):
     credit_val = pasted_values[9] if len(pasted_values) > 9 else 30
     credit_days = st.slider("Credit days offered to retailers", 15, 90, int(credit_val), 5, key=f"credit_{player_idx}")
 
-with st.expander("Advertising (Three Types)", expanded=True):
+    with st.expander("Advertising (Three Types)", expanded=True):
     st.markdown("#### Advertising spend per product per area (£000 per quarter)")
     st.markdown("**💡 Bulk Paste:** Paste 36 values (3 products × 4 areas × 3 types) separated by tabs/newlines")
     paste_adv = st.text_area(
@@ -2127,7 +2127,7 @@ with st.expander("Advertising (Three Types)", expanded=True):
                 advertising_support[(p, a)] = support * 1000.0
                 advertising_merchandising[(p, a)] = merchandising * 1000.0
 
-with st.expander("Product Development", expanded=True):
+    with st.expander("Product Development", expanded=True):
     product_dev = {}
     dev_cols = st.columns(len(PRODUCTS))
     for i, p in enumerate(PRODUCTS):
@@ -2143,7 +2143,7 @@ with st.expander("Product Development", expanded=True):
                 key=f"dev_{player_idx}_{p}",
             ) * 1000.0
 
-with st.expander("Salespeople Allocation", expanded=True):
+    with st.expander("Salespeople Allocation", expanded=True):
     total_salespeople = company.salespeople
     st.info(f"You currently have **{total_salespeople}** salespeople.")
     sales_alloc = {}
@@ -2173,7 +2173,7 @@ with st.expander("Salespeople Allocation", expanded=True):
     </div>
     """, unsafe_allow_html=True)
 
-with st.expander("Shift Level & Maintenance", expanded=True):
+    with st.expander("Shift Level & Maintenance", expanded=True):
     shift_level = st.radio("Shift level", [1, 2, 3], index=0, horizontal=True, key=f"shift_{player_idx}")
     st.info(f"Shift {shift_level}: {MACHINE_HOURS_PER_SHIFT[shift_level]} hours/machine, {MACHINISTS_PER_MACHINE[shift_level]} machinists/machine")
     
@@ -2186,7 +2186,7 @@ with st.expander("Shift Level & Maintenance", expanded=True):
         key=f"maint_{player_idx}",
     )
 
-with st.expander("Materials Ordering", expanded=True):
+    with st.expander("Materials Ordering", expanded=True):
     materials_supplier = st.selectbox(
         "Material Supplier",
         options=[0, 1, 2, 3],
@@ -2218,7 +2218,7 @@ with st.expander("Materials Ordering", expanded=True):
     else:
         materials_num_deliveries = 0 if materials_supplier == 0 else 12
 
-with st.expander("Delivery Schedule (units to deliver next quarter)", expanded=True):
+    with st.expander("Delivery Schedule (units to deliver next quarter)", expanded=True):
     st.markdown("**💡 Bulk Paste:** Paste 12 values (3 products × 4 areas) separated by tabs/newlines")
     paste_del = st.text_area(
         "Paste delivery values",
@@ -2255,7 +2255,7 @@ with st.expander("Delivery Schedule (units to deliver next quarter)", expanded=T
     </div>
     """, unsafe_allow_html=True)
 
-with st.expander("Salespeople", expanded=True):
+    with st.expander("Salespeople", expanded=True):
     col1, col2, col3 = st.columns(3)
     with col1:
         recruit_sales = st.number_input("Recruit salespeople", min_value=0, max_value=20, value=0, step=1, key=f"rec_sales_{player_idx}")
@@ -2281,7 +2281,7 @@ with st.expander("Salespeople", expanded=True):
             key=f"comm_sales_{player_idx}",
     )
 
-with st.expander("Assembly Workers", expanded=True):
+    with st.expander("Assembly Workers", expanded=True):
     col1, col2, col3 = st.columns(3)
     with col1:
         recruit_assembly = st.number_input("Recruit assembly workers", min_value=0, max_value=50, value=0, step=1, key=f"rec_assy_{player_idx}")
@@ -2305,7 +2305,7 @@ with st.expander("Assembly Workers", expanded=True):
     </div>
     """, unsafe_allow_html=True)
 
-finance_col1, finance_col2 = st.columns(2)
+    finance_col1, finance_col2 = st.columns(2)
 with finance_col1:
     dividend_per_share = st.number_input(
         "Dividend per share (pence) - Q1 and Q3 only",
@@ -2329,7 +2329,7 @@ with finance_col2:
             key=f"mgmt_{player_idx}",
     )
 
-with st.expander("Fixed Assets", expanded=False):
+    with st.expander("Fixed Assets", expanded=False):
     col1, col2 = st.columns(2)
     with col1:
         machines_to_order = st.number_input(
@@ -2355,11 +2355,11 @@ with st.expander("Fixed Assets", expanded=False):
         vans_to_buy = st.number_input("Vehicles to buy", min_value=0, max_value=10, value=0, step=1, key=f"van_buy_{player_idx}")
         vans_to_sell = st.number_input("Vehicles to sell", min_value=0, max_value=int(company.vehicles), value=0, step=1, key=f"van_sell_{player_idx}")
 
-with st.expander("Information Purchases", expanded=False):
+    with st.expander("Information Purchases", expanded=False):
     buy_competitor_info = st.checkbox("Buy Competitor Information (£5,000)", value=False, key=f"info_comp_{player_idx}")
     buy_market_shares = st.checkbox("Buy Market Shares Information (£5,000)", value=False, key=f"info_mkt_{player_idx}")
 
-# Create Decisions object
+    # Create Decisions object
     return Decisions(
         implement_major_improvement=implement_major,
         prices_home=prices_home,
