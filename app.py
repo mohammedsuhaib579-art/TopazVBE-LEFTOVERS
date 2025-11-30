@@ -2042,86 +2042,86 @@ with st.expander("Prices, Credit Terms & Quality", expanded=True):
         with price_cols[i]:
             st.markdown(f"**{p}**")
             base_home = 100 + 20 * i
-                home_val = pasted_values[i] if len(pasted_values) > i else base_home
+            home_val = pasted_values[i] if len(pasted_values) > i else base_home
             prices_home[p] = st.number_input(
                 f"Home price {p} (£/unit)",
                 min_value=10.0,
                 max_value=400.0,
-                    value=float(home_val),
+                value=float(home_val),
                 step=5.0,
-                    key=f"ph_{player_idx}_{p}",
+                key=f"ph_{player_idx}_{p}",
             )
-                export_val = pasted_values[i + 3] if len(pasted_values) > i + 3 else base_home * 1.1
+            export_val = pasted_values[i + 3] if len(pasted_values) > i + 3 else base_home * 1.1
             prices_export[p] = st.number_input(
                 f"Export price {p} (£/unit)",
                 min_value=10.0,
                 max_value=400.0,
-                    value=float(export_val),
+                value=float(export_val),
                 step=5.0,
-                    key=f"pe_{player_idx}_{p}",
+                key=f"pe_{player_idx}_{p}",
             )
-                assy_val = pasted_values[i + 6] if len(pasted_values) > i + 6 else MIN_ASSEMBLY_TIME[p] * 1.2
+            assy_val = pasted_values[i + 6] if len(pasted_values) > i + 6 else MIN_ASSEMBLY_TIME[p] * 1.2
             assembly_time[p] = st.number_input(
                 f"Assembly time {p} (mins/unit)",
                 min_value=float(MIN_ASSEMBLY_TIME[p]),
                 max_value=float(MIN_ASSEMBLY_TIME[p] * 2.0),
-                    value=float(assy_val),
+                value=float(assy_val),
                 step=10.0,
-                    key=f"assy_{player_idx}_{p}",
+                key=f"assy_{player_idx}_{p}",
             )
     
-        credit_val = pasted_values[9] if len(pasted_values) > 9 else 30
-        credit_days = st.slider("Credit days offered to retailers", 15, 90, int(credit_val), 5, key=f"credit_{player_idx}")
+    credit_val = pasted_values[9] if len(pasted_values) > 9 else 30
+    credit_days = st.slider("Credit days offered to retailers", 15, 90, int(credit_val), 5, key=f"credit_{player_idx}")
 
 with st.expander("Advertising (Three Types)", expanded=True):
     st.markdown("#### Advertising spend per product per area (£000 per quarter)")
     st.markdown("**💡 Bulk Paste:** Paste 36 values (3 products × 4 areas × 3 types) separated by tabs/newlines")
     paste_adv = st.text_area(
-            "Paste advertising values",
-            key=f"paste_adv_{player_idx}",
-            height=60,
-            help="36 values: Trade Press (12), Support (12), Merchandising (12). Order: P1 areas, P2 areas, P3 areas"
-        )
+        "Paste advertising values",
+        key=f"paste_adv_{player_idx}",
+        height=60,
+        help="36 values: Trade Press (12), Support (12), Merchandising (12). Order: P1 areas, P2 areas, P3 areas"
+    )
     
     advertising_trade_press = {}
     advertising_support = {}
     advertising_merchandising = {}
     
-        pasted_adv = parse_bulk_paste(paste_adv, 36) if paste_adv else []
-        
-        for p_idx, p in enumerate(PRODUCTS):
+    pasted_adv = parse_bulk_paste(paste_adv, 36) if paste_adv else []
+    
+    for p_idx, p in enumerate(PRODUCTS):
         st.markdown(f"**{p}**")
         area_cols = st.columns(len(AREAS))
-            for a_idx, a in enumerate(AREAS):
-                with area_cols[a_idx]:
+        for a_idx, a in enumerate(AREAS):
+            with area_cols[a_idx]:
                 st.markdown(f"*{a}*")
-                    idx = p_idx * 12 + a_idx
-                    tp_val = pasted_adv[idx] if len(pasted_adv) > idx else 5.0
+                idx = p_idx * 12 + a_idx
+                tp_val = pasted_adv[idx] if len(pasted_adv) > idx else 5.0
                 trade_press = st.number_input(
                     "Trade Press",
                     min_value=0.0,
                     max_value=100.0,
-                        value=float(tp_val),
+                    value=float(tp_val),
                     step=1.0,
-                        key=f"adv_tp_{player_idx}_{p}_{a}",
+                    key=f"adv_tp_{player_idx}_{p}_{a}",
                 )
-                    sup_val = pasted_adv[idx + 12] if len(pasted_adv) > idx + 12 else 5.0
+                sup_val = pasted_adv[idx + 12] if len(pasted_adv) > idx + 12 else 5.0
                 support = st.number_input(
                     "Support",
                     min_value=0.0,
                     max_value=100.0,
-                        value=float(sup_val),
+                    value=float(sup_val),
                     step=1.0,
-                        key=f"adv_sup_{player_idx}_{p}_{a}",
+                    key=f"adv_sup_{player_idx}_{p}_{a}",
                 )
-                    merch_val = pasted_adv[idx + 24] if len(pasted_adv) > idx + 24 else 5.0
+                merch_val = pasted_adv[idx + 24] if len(pasted_adv) > idx + 24 else 5.0
                 merchandising = st.number_input(
                     "Merchandising",
                     min_value=0.0,
                     max_value=100.0,
-                        value=float(merch_val),
+                    value=float(merch_val),
                     step=1.0,
-                        key=f"adv_merch_{player_idx}_{p}_{a}",
+                    key=f"adv_merch_{player_idx}_{p}_{a}",
                 )
                 advertising_trade_press[(p, a)] = trade_press * 1000.0
                 advertising_support[(p, a)] = support * 1000.0
@@ -2132,7 +2132,7 @@ with st.expander("Product Development", expanded=True):
     dev_cols = st.columns(len(PRODUCTS))
     for i, p in enumerate(PRODUCTS):
         with dev_cols[i]:
-                accumulated = company.product_dev_accumulated.get(p, 0.0)
+            accumulated = company.product_dev_accumulated.get(p, 0.0)
             st.metric(f"Accumulated {p}", f"£{accumulated:,.0f}")
             product_dev[p] = st.number_input(
                 f"Dev spend {p} (£000)",
@@ -2140,7 +2140,7 @@ with st.expander("Product Development", expanded=True):
                 max_value=200.0,
                 value=20.0,
                 step=5.0,
-                    key=f"dev_{player_idx}_{p}",
+                key=f"dev_{player_idx}_{p}",
             ) * 1000.0
 
 with st.expander("Salespeople Allocation", expanded=True):
@@ -2162,7 +2162,7 @@ with st.expander("Salespeople Allocation", expanded=True):
                     max_value=int(remaining),
                     value=int(remaining // (len(AREAS) - i)),
                     step=1,
-                        key=f"sales_{player_idx}_{a}",
+                    key=f"sales_{player_idx}_{a}",
                 )
             sales_alloc[a] = val
             remaining -= val
@@ -2183,7 +2183,7 @@ with st.expander("Shift Level & Maintenance", expanded=True):
         max_value=200.0,
         value=40.0,
         step=5.0,
-            key=f"maint_{player_idx}",
+        key=f"maint_{player_idx}",
     )
 
 with st.expander("Materials Ordering", expanded=True):
@@ -2191,7 +2191,7 @@ with st.expander("Materials Ordering", expanded=True):
         "Material Supplier",
         options=[0, 1, 2, 3],
         format_func=lambda x: f"Supplier {x}: {SUPPLIERS[x]['discount']*100:.0f}% discount, Min order: {SUPPLIERS[x]['min_order']:,.0f}",
-            key=f"supplier_{player_idx}",
+        key=f"supplier_{player_idx}",
     )
     
     supplier_info = SUPPLIERS[materials_supplier]
@@ -2221,29 +2221,29 @@ with st.expander("Materials Ordering", expanded=True):
 with st.expander("Delivery Schedule (units to deliver next quarter)", expanded=True):
     st.markdown("**💡 Bulk Paste:** Paste 12 values (3 products × 4 areas) separated by tabs/newlines")
     paste_del = st.text_area(
-            "Paste delivery values",
-            key=f"paste_del_{player_idx}",
-            height=60,
-            help="12 values: P1 areas (4), P2 areas (4), P3 areas (4)"
-        )
-        
+        "Paste delivery values",
+        key=f"paste_del_{player_idx}",
+        height=60,
+        help="12 values: P1 areas (4), P2 areas (4), P3 areas (4)"
+    )
+    
     deliveries = {}
-        pasted_del = parse_bulk_paste(paste_del, 12) if paste_del else []
-        
-        for p_idx, p in enumerate(PRODUCTS):
+    pasted_del = parse_bulk_paste(paste_del, 12) if paste_del else []
+    
+    for p_idx, p in enumerate(PRODUCTS):
         st.markdown(f"**{p}**")
         area_cols = st.columns(len(AREAS))
-            for a_idx, area in enumerate(AREAS):
-                with area_cols[a_idx]:
-                    idx = p_idx * 4 + a_idx
-                    del_val = int(pasted_del[idx]) if len(pasted_del) > idx else 0
+        for a_idx, area in enumerate(AREAS):
+            with area_cols[a_idx]:
+                idx = p_idx * 4 + a_idx
+                del_val = int(pasted_del[idx]) if len(pasted_del) > idx else 0
                 val = st.number_input(
                     f"{area}",
                     min_value=0,
                     max_value=10_000,
-                        value=del_val,
+                    value=del_val,
                     step=50,
-                        key=f"del_{player_idx}_{p}_{area}",
+                    key=f"del_{player_idx}_{p}_{area}",
                 )
                 deliveries[(p, area)] = val
     
@@ -2258,11 +2258,11 @@ with st.expander("Delivery Schedule (units to deliver next quarter)", expanded=T
 with st.expander("Salespeople", expanded=True):
     col1, col2, col3 = st.columns(3)
     with col1:
-            recruit_sales = st.number_input("Recruit salespeople", min_value=0, max_value=20, value=0, step=1, key=f"rec_sales_{player_idx}")
+        recruit_sales = st.number_input("Recruit salespeople", min_value=0, max_value=20, value=0, step=1, key=f"rec_sales_{player_idx}")
     with col2:
-            dismiss_sales = st.number_input("Dismiss salespeople", min_value=0, max_value=int(company.salespeople), value=0, step=1, key=f"dis_sales_{player_idx}")
+        dismiss_sales = st.number_input("Dismiss salespeople", min_value=0, max_value=int(company.salespeople), value=0, step=1, key=f"dis_sales_{player_idx}")
     with col3:
-            train_sales = st.number_input("Train salespeople from unemployed (max 9)", min_value=0, max_value=9, value=0, step=1, key=f"train_sales_{player_idx}")
+        train_sales = st.number_input("Train salespeople from unemployed (max 9)", min_value=0, max_value=9, value=0, step=1, key=f"train_sales_{player_idx}")
     
     sales_salary = st.number_input(
         "Sales salary per quarter (£)",
@@ -2284,20 +2284,20 @@ with st.expander("Salespeople", expanded=True):
 with st.expander("Assembly Workers", expanded=True):
     col1, col2, col3 = st.columns(3)
     with col1:
-            recruit_assembly = st.number_input("Recruit assembly workers", min_value=0, max_value=50, value=0, step=1, key=f"rec_assy_{player_idx}")
+        recruit_assembly = st.number_input("Recruit assembly workers", min_value=0, max_value=50, value=0, step=1, key=f"rec_assy_{player_idx}")
     with col2:
-            dismiss_assembly = st.number_input("Dismiss assembly workers", min_value=0, max_value=int(company.assembly_workers), value=0, step=1, key=f"dis_assy_{player_idx}")
+        dismiss_assembly = st.number_input("Dismiss assembly workers", min_value=0, max_value=int(company.assembly_workers), value=0, step=1, key=f"dis_assy_{player_idx}")
     with col3:
-            train_assembly = st.number_input("Train assembly workers from unemployed (max 9)", min_value=0, max_value=9, value=0, step=1, key=f"train_assy_{player_idx}")
+        train_assembly = st.number_input("Train assembly workers from unemployed (max 9)", min_value=0, max_value=9, value=0, step=1, key=f"train_assy_{player_idx}")
     
     assembly_wage_rate = st.number_input(
         "Assembly worker hourly wage rate (£)",
         min_value=ASSEMBLY_MIN_WAGE_RATE,
         max_value=50.0,
-            value=float(company.assembly_wage_rate),
+        value=float(company.assembly_wage_rate),
         step=0.50,
-            key=f"wage_assy_{player_idx}",
-        )
+        key=f"wage_assy_{player_idx}",
+    )
     
     st.markdown("""
     <div style='background-color: #f8f9fa; padding: 1rem; border-radius: 8px; border-left: 4px solid #dc3545; margin: 1.5rem 0 1rem 0;'>
