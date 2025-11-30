@@ -2010,26 +2010,26 @@ with st.expander("Product Improvements", expanded=False):
     st.info("Implement Major Improvements (will write off all stocks for that product)")
     implement_major = {}
     for p in PRODUCTS:
-            implement_major[p] = st.checkbox(f"Implement Major Improvement - {p}", key=f"major_{player_idx}_{p}")
+        implement_major[p] = st.checkbox(f"Implement Major Improvement - {p}", key=f"major_{player_idx}_{p}")
     
     # Show current star ratings
     st.markdown("**Current Product Star Ratings:**")
     star_cols = st.columns(len(PRODUCTS))
     for i, p in enumerate(PRODUCTS):
         with star_cols[i]:
-                stars = company.product_star_ratings.get(p, 3)
+            stars = company.product_star_ratings.get(p, 3)
             st.metric(p, f"{stars:.1f} ⭐")
 
 with st.expander("Prices, Credit Terms & Quality", expanded=True):
-        # Bulk paste for prices
-        st.markdown("**💡 Bulk Paste Support:** Paste tab/newline separated values (e.g., from AI)")
-        paste_prices = st.text_area(
-            "Paste prices (Home P1, Home P2, Home P3, Export P1, Export P2, Export P3, Assembly P1, Assembly P2, Assembly P3, Credit Days)",
-            key=f"paste_prices_{player_idx}",
-            height=60,
-            help="Paste values separated by tabs or newlines. Order: Home prices (3), Export prices (3), Assembly times (3), Credit days (1)"
-        )
-        
+    # Bulk paste for prices
+    st.markdown("**💡 Bulk Paste Support:** Paste tab/newline separated values (e.g., from AI)")
+    paste_prices = st.text_area(
+        "Paste prices (Home P1, Home P2, Home P3, Export P1, Export P2, Export P3, Assembly P1, Assembly P2, Assembly P3, Credit Days)",
+        key=f"paste_prices_{player_idx}",
+        height=60,
+        help="Paste values separated by tabs or newlines. Order: Home prices (3), Export prices (3), Assembly times (3), Credit days (1)"
+    )
+    
     price_cols = st.columns(len(PRODUCTS))
     prices_home = {}
     prices_export = {}
@@ -2075,8 +2075,8 @@ with st.expander("Prices, Credit Terms & Quality", expanded=True):
 
 with st.expander("Advertising (Three Types)", expanded=True):
     st.markdown("#### Advertising spend per product per area (£000 per quarter)")
-        st.markdown("**💡 Bulk Paste:** Paste 36 values (3 products × 4 areas × 3 types) separated by tabs/newlines")
-        paste_adv = st.text_area(
+    st.markdown("**💡 Bulk Paste:** Paste 36 values (3 products × 4 areas × 3 types) separated by tabs/newlines")
+    paste_adv = st.text_area(
             "Paste advertising values",
             key=f"paste_adv_{player_idx}",
             height=60,
@@ -2144,7 +2144,7 @@ with st.expander("Product Development", expanded=True):
             ) * 1000.0
 
 with st.expander("Salespeople Allocation", expanded=True):
-        total_salespeople = company.salespeople
+    total_salespeople = company.salespeople
     st.info(f"You currently have **{total_salespeople}** salespeople.")
     sales_alloc = {}
     remaining = total_salespeople
@@ -2174,7 +2174,7 @@ with st.expander("Salespeople Allocation", expanded=True):
     """, unsafe_allow_html=True)
 
 with st.expander("Shift Level & Maintenance", expanded=True):
-        shift_level = st.radio("Shift level", [1, 2, 3], index=0, horizontal=True, key=f"shift_{player_idx}")
+    shift_level = st.radio("Shift level", [1, 2, 3], index=0, horizontal=True, key=f"shift_{player_idx}")
     st.info(f"Shift {shift_level}: {MACHINE_HOURS_PER_SHIFT[shift_level]} hours/machine, {MACHINISTS_PER_MACHINE[shift_level]} machinists/machine")
     
     maint_hours = st.number_input(
@@ -2219,8 +2219,8 @@ with st.expander("Materials Ordering", expanded=True):
         materials_num_deliveries = 0 if materials_supplier == 0 else 12
 
 with st.expander("Delivery Schedule (units to deliver next quarter)", expanded=True):
-        st.markdown("**💡 Bulk Paste:** Paste 12 values (3 products × 4 areas) separated by tabs/newlines")
-        paste_del = st.text_area(
+    st.markdown("**💡 Bulk Paste:** Paste 12 values (3 products × 4 areas) separated by tabs/newlines")
+    paste_del = st.text_area(
             "Paste delivery values",
             key=f"paste_del_{player_idx}",
             height=60,
@@ -2356,8 +2356,8 @@ with st.expander("Fixed Assets", expanded=False):
             vans_to_sell = st.number_input("Vehicles to sell", min_value=0, max_value=int(company.vehicles), value=0, step=1, key=f"van_sell_{player_idx}")
 
 with st.expander("Information Purchases", expanded=False):
-        buy_competitor_info = st.checkbox("Buy Competitor Information (£5,000)", value=False, key=f"info_comp_{player_idx}")
-        buy_market_shares = st.checkbox("Buy Market Shares Information (£5,000)", value=False, key=f"info_mkt_{player_idx}")
+    buy_competitor_info = st.checkbox("Buy Competitor Information (£5,000)", value=False, key=f"info_comp_{player_idx}")
+    buy_market_shares = st.checkbox("Buy Market Shares Information (£5,000)", value=False, key=f"info_mkt_{player_idx}")
 
     # Create Decisions object
     return Decisions(
