@@ -1878,9 +1878,21 @@ class Simulation:
         for i, c in enumerate(self.companies):
             if i < len(player_decisions_list) and player_decisions_list[i] is not None:
                 decision = player_decisions_list[i]
-                # Basic validation - just ensure it's not a list
+                # Basic validation - ensure it's not a list or the class itself
                 if isinstance(decision, list):
                     raise TypeError(f"Decision at index {i} is a list, not a Decisions object. Got: {type(decision)}")
+                # Check if it's the class itself (not an instance) - this is the main issue
+                if decision is Decisions:
+                    raise TypeError(f"Decision at index {i} is the Decisions CLASS, not an instance! Got: {type(decision)}. This means the class was passed instead of creating an instance with Decisions().")
+                if isinstance(decision, type):
+                    raise TypeError(f"Decision at index {i} is a type/class, not an instance. Got: {type(decision)}, value: {decision}")
+                # Verify it's actually an instance by trying to access an attribute
+                try:
+                    test_attr = decision.prices_home
+                except AttributeError:
+                    raise TypeError(f"Decision at index {i} doesn't have 'prices_home' attribute. Got: {type(decision)}")
+                except TypeError as e:
+                    raise TypeError(f"Decision at index {i} is not a proper instance (might be the class). Got: {type(decision)}, error: {e}")
                 # Just append - if it's not valid, it will fail naturally when used
                 all_decisions.append(decision)
             else:
@@ -2593,7 +2605,7 @@ if not st.session_state.sim_started:
         # Start button
         col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 1])
         with col_btn2:
-            if st.button("🚀 Start Simulation", type="primary", use_container_width=True, key="start_sim"):
+            if st.button("🚀 Start Simulation", type="primary", width='stretch', key="start_sim"):
                 st.session_state.n_players = n_players_input
                 # If 1 player: 8 companies (1 human + 7 AI)
                 # If 2+ players: only human players (no AI)
@@ -2755,9 +2767,11 @@ if n_players == 1:
     # Single player - show form directly
     decisions_obj = create_player_decision_form(0, sim.companies[0], sim.economy)
     # Check if it's a Decisions instance (not the class) by checking for attributes
-    if decisions_obj is not None and hasattr(decisions_obj, 'prices_home') and hasattr(decisions_obj, 'deliveries'):
-        player_decisions_list = [decisions_obj]
-        st.session_state.player_decisions[0] = decisions_obj
+    if decisions_obj is not None and decisions_obj is not Decisions:
+        # Ensure it's an instance, not the class
+        if hasattr(decisions_obj, '__dict__') and hasattr(decisions_obj, 'prices_home') and hasattr(decisions_obj, 'deliveries'):
+            player_decisions_list = [decisions_obj]
+            st.session_state.player_decisions[0] = decisions_obj
 else:
     # Multiple players - use tabs
     tab_names = [f"Player {i+1}: {sim.companies[i].name}" for i in range(n_players)]
@@ -2767,28 +2781,30 @@ else:
         with tabs[i]:
             decisions_obj = create_player_decision_form(i, sim.companies[i], sim.economy)
             # Check if it's a Decisions instance (not the class) by checking for attributes
-            if decisions_obj is not None and hasattr(decisions_obj, 'prices_home') and hasattr(decisions_obj, 'deliveries'):
-                st.session_state.player_decisions[i] = decisions_obj
-                if decisions_obj not in player_decisions_list:
-                    player_decisions_list.append(decisions_obj)
+            if decisions_obj is not None and decisions_obj is not Decisions:
+                # Ensure it's an instance, not the class
+                if hasattr(decisions_obj, '__dict__') and hasattr(decisions_obj, 'prices_home') and hasattr(decisions_obj, 'deliveries'):
+                    st.session_state.player_decisions[i] = decisions_obj
+                    if decisions_obj not in player_decisions_list:
+                        player_decisions_list.append(decisions_obj)
 
 # Use session state decisions if available (check by attributes, not isinstance)
 valid_decisions = []
 for d in st.session_state.player_decisions[:n_players]:
-    if d is not None and hasattr(d, 'prices_home') and hasattr(d, 'deliveries'):
+    if d is not None and d is not Decisions and hasattr(d, '__dict__') and hasattr(d, 'prices_home') and hasattr(d, 'deliveries'):
         valid_decisions.append(d)
 if len(valid_decisions) == n_players:
     player_decisions_list = valid_decisions
 
 # Submit button (only show if we have decisions)
-if len(player_decisions_list) == n_players and all(d is not None and hasattr(d, 'prices_home') and hasattr(d, 'deliveries') for d in player_decisions_list):
+if len(player_decisions_list) == n_players and all(d is not None and d is not Decisions and hasattr(d, '__dict__') and hasattr(d, 'prices_home') and hasattr(d, 'deliveries') for d in player_decisions_list):
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("""
     <div style='text-align: center; padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                 border-radius: 10px; margin: 2rem 0;'>
     </div>
     """, unsafe_allow_html=True)
-    if st.button("🚀 Submit All Decisions and Run Quarter", type="primary", use_container_width=True):
+    if st.button("🚀 Submit All Decisions and Run Quarter", type="primary", width='stretch'):
         # Final validation
         try:
             reports = sim.step(player_decisions_list)
@@ -2833,7 +2849,7 @@ if sim.companies[0].last_report:
             })
     
     if results_data:
-        st.dataframe(pd.DataFrame(results_data), use_container_width=True)
+        st.dataframe(pd.DataFrame(results_data), width='stretch')
     
 # Helper function to convert tuple keys to JSON-serializable format
 def make_json_serializable(obj):
@@ -2964,7 +2980,7 @@ if player_company.last_report:
                     personnel_next.get('machinists', 0)
                 ]
             }
-            st.dataframe(pd.DataFrame(personnel_data), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(personnel_data), width='stretch', hide_index=True)
         
         with top_col2:
             st.markdown("#### PRODUCT MOVEMENTS and AVAILABILITY")
@@ -2982,14 +2998,14 @@ if player_company.last_report:
             quant_data["Produced"] = [sum(deliveries.get((p, a), 0) for a in AREAS) + sum(rejects.get((p, a), 0) for a in AREAS) for p in PRODUCTS]
             quant_data["Rejected"] = [sum(rejects.get((p, a), 0) for a in AREAS) for p in PRODUCTS]
             quant_data["Serviced"] = [servicing.get(p, 0) for p in PRODUCTS]
-            st.dataframe(pd.DataFrame(quant_data), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(quant_data), width='stretch', hide_index=True)
             
             # Delivered to table
             st.write("**Delivered to:**")
             deliv_data = {"Area": AREAS}
             for p in PRODUCTS:
                 deliv_data[p] = [deliveries.get((p, a), 0) for a in AREAS]
-            st.dataframe(pd.DataFrame(deliv_data), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(deliv_data), width='stretch', hide_index=True)
             
             # Orders from table
             st.write("**Orders from:**")
@@ -2997,7 +3013,7 @@ if player_company.last_report:
             orders_data = {"Area": AREAS}
             for p in PRODUCTS:
                 orders_data[p] = [new_orders.get((p, a), 0) for a in AREAS]
-            st.dataframe(pd.DataFrame(orders_data), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(orders_data), width='stretch', hide_index=True)
             
             # Sales to table
             st.write("**Sales to:**")
@@ -3005,7 +3021,7 @@ if player_company.last_report:
             sales_data = {"Area": AREAS}
             for p in PRODUCTS:
                 sales_data[p] = [sales.get((p, a), 0) for a in AREAS]
-            st.dataframe(pd.DataFrame(sales_data), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(sales_data), width='stretch', hide_index=True)
             
             # Order Backlog table
             st.write("**Order Backlog:**")
@@ -3013,7 +3029,7 @@ if player_company.last_report:
             backlog_data = {"Area": AREAS}
             for p in PRODUCTS:
                 backlog_data[p] = [backlog.get((p, a), 0) for a in AREAS]
-            st.dataframe(pd.DataFrame(backlog_data), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(backlog_data), width='stretch', hide_index=True)
             
             # Warehouse Stock table
             st.write("**Warehouse Stock:**")
@@ -3021,14 +3037,14 @@ if player_company.last_report:
             stock_data = {"Area": AREAS}
             for p in PRODUCTS:
                 stock_data[p] = [stocks.get((p, a), 0) for a in AREAS]
-            st.dataframe(pd.DataFrame(stock_data), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(stock_data), width='stretch', hide_index=True)
             
             # Product Improvements
             st.write("**Product Improvements:**")
             dev_outcomes = report.get('product_dev_outcomes', {})
             improvements = [dev_outcomes.get(p, "NONE").upper() if dev_outcomes.get(p) else "NONE" for p in PRODUCTS]
             imp_data = {"": PRODUCTS, "Improvements": improvements}
-            st.dataframe(pd.DataFrame(imp_data), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(imp_data), width='stretch', hide_index=True)
         
         # ACCOUNTS section - two columns
         st.markdown("---")
@@ -3055,7 +3071,7 @@ if player_company.last_report:
             ]
             overhead_df = pd.DataFrame(overhead_items, columns=["Cost Item", "Amount in £"])
             overhead_df["Amount in £"] = overhead_df["Amount in £"].apply(lambda x: f"£{x:,.0f}")
-            st.dataframe(overhead_df, use_container_width=True, hide_index=True)
+            st.dataframe(overhead_df, width='stretch', hide_index=True)
             st.write(f"**Total Overheads:** £{report.get('total_overheads', 0):,.0f}")
         
         with accounts_col2:
@@ -3082,7 +3098,7 @@ if player_company.last_report:
             ]
             pnl_df = pd.DataFrame(pnl_items, columns=["Account Item", "Amount in £"])
             pnl_df["Amount in £"] = pnl_df["Amount in £"].apply(lambda x: f"£{x:,.0f}")
-            st.dataframe(pnl_df, use_container_width=True, hide_index=True)
+            st.dataframe(pnl_df, width='stretch', hide_index=True)
         
         # Balance Sheet and Cash Flow - two columns
         st.markdown("---")
@@ -3113,7 +3129,7 @@ if player_company.last_report:
             ]
             balance_df = pd.DataFrame(balance_items, columns=["Item", "Amount in £"])
             balance_df["Amount in £"] = balance_df["Amount in £"].apply(lambda x: f"£{x:,.0f}" if isinstance(x, (int, float)) else x)
-            st.dataframe(balance_df, use_container_width=True, hide_index=True)
+            st.dataframe(balance_df, width='stretch', hide_index=True)
         
         with balance_col2:
             st.markdown("#### Cash Flow Statement")
@@ -3138,7 +3154,7 @@ if player_company.last_report:
             ]
             cf_df = pd.DataFrame(cf_items, columns=["Item", "Amount in £"])
             cf_df["Amount in £"] = cf_df["Amount in £"].apply(lambda x: f"£{x:,.0f}" if isinstance(x, (int, float)) else x)
-            st.dataframe(cf_df, use_container_width=True, hide_index=True)
+            st.dataframe(cf_df, width='stretch', hide_index=True)
     
     # Detailed report expander (with JSON serialization fix)
     with st.expander("🔍 Detailed Report (JSON)", expanded=False):
@@ -3170,5 +3186,5 @@ for i, comp in enumerate(sim.companies[1:], 1):
         "Machines": comp.machines,
     })
 if competitor_df:
-    st.dataframe(pd.DataFrame(competitor_df), use_container_width=True)
+    st.dataframe(pd.DataFrame(competitor_df), width='stretch')
 
