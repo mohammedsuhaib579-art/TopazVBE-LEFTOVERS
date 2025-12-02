@@ -1998,6 +1998,13 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
         st.metric("⚙️ Machines", f"{company.machines}")
     
     st.markdown("<br>", unsafe_allow_html=True)
+
+    # Optional guided tutorial tips
+    if st.session_state.get("show_tutorial", False):
+        st.info(
+            "Step 1: Start with **Marketing Decisions** – set prices, credit terms, advertising, "
+            "and product development. Hover over inputs or read section descriptions for guidance."
+        )
     
     # Section headers with icons
     st.markdown("""
@@ -2135,6 +2142,85 @@ def create_player_decision_form(player_idx: int, company: CompanyState, economy:
                     advertising_trade_press[(p, a)] = trade_press * 1000.0
                     advertising_support[(p, a)] = support * 1000.0
                     advertising_merchandising[(p, a)] = merchandising * 1000.0
+
+    # Lightweight decision impact preview (uses current economy, ignores competitors)
+    with st.expander("🔍 Preview demand & revenue impact (sandbox)", expanded=False):
+        sim: Optional[Simulation] = st.session_state.get("sim")
+        if sim is not None:
+            try:
+                preview_decisions = Decisions(
+                    prices_home=prices_home,
+                    prices_export=prices_export,
+                    credit_days=credit_days,
+                    assembly_time=assembly_time,
+                    advertising_trade_press=advertising_trade_press,
+                    advertising_support=advertising_support,
+                    advertising_merchandising=advertising_merchandising,
+                    salespeople_allocation=sales_alloc,
+                    product_development={},  # dev spend mainly affects future quarters
+                )
+
+                preview_rows = []
+                for p in PRODUCTS:
+                    for a in AREAS:
+                        demand = sim.demand_for_product(
+                            company=company,
+                            decisions=preview_decisions,
+                            product=p,
+                            area=a,
+                            all_companies=None,
+                            all_decisions=None,
+                        )
+                        price = (
+                            preview_decisions.prices_export[p]
+                            if a == "Export"
+                            else preview_decisions.prices_home[p]
+                        )
+                        revenue = demand * price
+                        preview_rows.append(
+                            {
+                                "Product": p,
+                                "Area": a,
+                                "Expected Units": demand,
+                                "Expected Revenue": revenue,
+                            }
+                        )
+
+                if preview_rows:
+                    preview_df = pd.DataFrame(preview_rows)
+                    area_revenue = (
+                        preview_df.groupby("Area")["Expected Revenue"]
+                        .sum()
+                        .reset_index()
+                    )
+                    st.markdown("**Estimated revenue by area (this quarter)**")
+                    st.bar_chart(
+                        data=area_revenue.set_index("Area"),
+                    )
+
+                    product_revenue = (
+                        preview_df.groupby("Product")["Expected Revenue"]
+                        .sum()
+                        .reset_index()
+                    )
+                    st.markdown("**Estimated revenue by product**")
+                    st.bar_chart(
+                        data=product_revenue.set_index("Product"),
+                    )
+
+                    st.caption(
+                        "These previews are approximate and ignore competitors' decisions and "
+                        "operational constraints, but they help you compare scenarios quickly."
+                    )
+            except Exception as _e:
+                st.caption(
+                    "Preview could not be generated for this configuration, "
+                    "but you can still run the full simulation."
+                )
+        else:
+            st.caption(
+                "Demand previews are available once the simulation has been initialised."
+            )
 
     with st.expander("Product Development", expanded=True):
         product_dev = {}
@@ -2530,6 +2616,12 @@ if "sim" not in st.session_state:
 if "n_players" not in st.session_state:
     st.session_state.n_players = 1
 
+if "show_tutorial" not in st.session_state:
+    st.session_state.show_tutorial = True
+
+if "debrief_notes" not in st.session_state:
+    st.session_state.debrief_notes = {}
+
 # ============================================================================
 # START PAGE - Show before simulation starts
 # ============================================================================
@@ -2738,6 +2830,15 @@ if st.session_state.n_players == 1:
 else:
     st.sidebar.metric("🤖 AI Players", 0)
     st.sidebar.caption("Only human players")
+
+st.sidebar.markdown("---")
+
+# Guided tutorial toggle
+st.sidebar.markdown("### 🧭 Guided Tutorial")
+st.session_state.show_tutorial = st.sidebar.checkbox(
+    "Show step-by-step tips",
+    value=st.session_state.get("show_tutorial", True),
+)
 
 st.sidebar.markdown("---")
 
@@ -3206,6 +3307,131 @@ if player_company.last_report:
         with fin_cols[2]:
             st.metric("Depreciation", f"£{report.get('depreciation', 0):,.0f}")
             st.metric("Tax", f"£{report.get('tax', 0):,.0f}")
+
+    # Gamification: performance score and badges
+    st.markdown("### 🏅 Gamification & Performance")
+    perf_cols = st.columns(3)
+    share_price = float(report.get("share_price", player_company.share_price))
+    net_profit = float(report.get("net_profit", 0.0))
+    gross_profit = float(report.get("gross_profit", 0.0))
+
+    # Simple composite score (scaled for readability)
+    esg_training = 0.0
+    personnel_train = report.get("personnel_trained", {})
+    personnel_dismiss = report.get("personnel_dismissed", {})
+    total_train = (
+        personnel_train.get("sales", 0)
+        + personnel_train.get("assembly", 0)
+        + personnel_train.get("machinists", 0)
+    )
+    total_dismiss = (
+        personnel_dismiss.get("sales", 0)
+        + personnel_dismiss.get("assembly", 0)
+        + personnel_dismiss.get("machinists", 0)
+    )
+    if total_train + total_dismiss > 0:
+        esg_training = 100.0 * total_train / (total_train + total_dismiss)
+
+    perf_score = max(
+        0.0,
+        share_price * 10.0
+        + net_profit / 10_000.0
+        + esg_training / 2.0,
+    )
+
+    with perf_cols[0]:
+        st.metric("Overall Score", f"{perf_score:0.1f}")
+    with perf_cols[1]:
+        st.metric("Profit Focus", f"£{net_profit:,.0f}")
+    with perf_cols[2]:
+        st.metric("People & ESG Score", f"{esg_training:0.1f}/100")
+
+    badges = []
+    if net_profit > 0:
+        badges.append("💼 Profit Maker: Positive net profit this quarter")
+    if share_price >= player_company.share_price:
+        badges.append("📈 Market Favourite: Share price maintained or improved")
+    if esg_training >= 60:
+        badges.append("🌱 People Developer: Majority of people moves are training, not dismissals")
+    if report.get("overdraft", 0) <= 0 and player_company.cash > 0:
+        badges.append("🏦 Cash Conservative: No overdraft usage")
+
+    if badges:
+        st.markdown("**Unlocked Badges this Quarter:**")
+        for b in badges:
+            st.markdown(f"- {b}")
+    else:
+        st.caption("No badges unlocked this quarter – try improving profitability, ESG, or financial resilience.")
+
+    # Visual analytics for this quarter
+    with st.expander("📈 Visual Analytics (this quarter)", expanded=False):
+        sales = report.get("sales", {})
+        rejects = report.get("rejects", {})
+
+        if sales:
+            area_totals = {
+                a: sum(sales.get((p, a), 0) for p in PRODUCTS)
+                for a in AREAS
+            }
+            prod_totals = {
+                p: sum(sales.get((p, a), 0) for a in AREAS)
+                for p in PRODUCTS
+            }
+
+            st.markdown("**Units sold by area**")
+            st.bar_chart(
+                pd.DataFrame(
+                    {"Area": list(area_totals.keys()), "Units": list(area_totals.values())}
+                ).set_index("Area")
+            )
+
+            st.markdown("**Units sold by product**")
+            st.bar_chart(
+                pd.DataFrame(
+                    {"Product": list(prod_totals.keys()), "Units": list(prod_totals.values())}
+                ).set_index("Product")
+            )
+
+        if rejects:
+            reject_totals = {
+                p: sum(rejects.get((p, a), 0) for a in AREAS) for p in PRODUCTS
+            }
+            st.markdown("**Quality view – rejected units by product**")
+            st.bar_chart(
+                pd.DataFrame(
+                    {
+                        "Product": list(reject_totals.keys()),
+                        "Rejected Units": list(reject_totals.values()),
+                    }
+                ).set_index("Product")
+            )
+
+    # Collaborative debrief & learning prompts
+    with st.expander("🤝 Team Debrief & Learning Check-in", expanded=False):
+        period_key = f"Y{year}Q{quarter}"
+        existing_notes = st.session_state.debrief_notes.get(period_key, "")
+        notes = st.text_area(
+            "Debrief notes (for your team or future you)",
+            value=existing_notes,
+            height=120,
+        )
+        st.session_state.debrief_notes[period_key] = notes
+
+        st.markdown("**Reflection prompts:**")
+        st.markdown(
+            "- What was your main strategic hypothesis this quarter?\n"
+            "- Which metric moved as expected, and which one surprised you?\n"
+            "- What will you change next quarter based on these results?"
+        )
+
+        if notes:
+            debrief_md = f"# Debrief – {period_key}\n\n" + notes
+            st.download_button(
+                "Download debrief as Markdown",
+                data=debrief_md,
+                file_name=f"topaz_debrief_{period_key}.md",
+                mime="text/markdown",
+            )
 
 # Display competitor information
 st.markdown("### Competitor Information")
